@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/cloudflare-pages';
 import { SignJWT, jwtVerify } from 'jose';
-import nodemailer from 'nodemailer';
 
 const app = new Hono().basePath('/api');
 
@@ -17,39 +16,42 @@ async function verifyToken(token, secret) {
   } catch (e) { return null; }
 }
 
-// === 通用 SMTP 发送函数 ===
-async function sendEmailBySMTP(env, toEmail, code) {
-  const transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST, // 例如 smtp-relay.brevo.com
-    port: parseInt(env.SMTP_PORT || '587'),
-    secure: false, // 587 端口通常为 false
-    auth: {
-      user: env.SMTP_USER, // 你的 Brevo 登录邮箱
-      pass: env.SMTP_PASS  // 刚才生成的 Key
-    }
-  });
-
-  // 发件人必须是你已经验证过的域名邮箱
-  const senderAddress = env.SENDER_EMAIL || env.SMTP_USER;
-
-  await transporter.sendMail({
-    from: `"ACG资源社" <${senderAddress}>`,
-    to: toEmail,
-    subject: '【ACG资源社】登录验证码',
-    html: `
-      <div style="padding: 20px; background: #fff0f5; border-radius: 10px; font-family: sans-serif; border: 1px solid #ffb6c1;">
-        <h2 style="color: #ff69b4;">🌸 身份验证</h2>
-        <p>您好！您的登录验证码是：</p>
-        <div style="background: #fff; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
-            <span style="font-size: 28px; font-weight: bold; color: #ff1493; letter-spacing: 8px;">${code}</span>
+// === Brevo API 发信函数 (无需 Node.js 模块) ===
+async function sendEmailByBrevoAPI(env, toEmail, code) {
+  const url = 'https://api.brevo.com/v3/smtp/email';
+  const senderEmail = env.SENDER_EMAIL || env.SMTP_USER; // 发件人
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': env.BREVO_API_KEY, // 这里使用 API Key 而不是 SMTP 密码
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { email: senderEmail, name: "ACG资源社" },
+      to: [{ email: toEmail }],
+      subject: "【ACG资源社】登录验证码",
+      htmlContent: `
+        <div style="padding: 20px; background: #fff0f5; border-radius: 10px; font-family: sans-serif; border: 1px solid #ffb6c1;">
+          <h2 style="color: #ff69b4;">🌸 身份验证</h2>
+          <p>您好！您的登录验证码是：</p>
+          <div style="background: #fff; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+              <span style="font-size: 28px; font-weight: bold; color: #ff1493; letter-spacing: 8px;">${code}</span>
+          </div>
+          <p style="font-size: 12px; color: #999;">(Brevo API 发送)</p>
         </div>
-        <p style="font-size: 12px; color: #999;">此验证码 5 分钟内有效。如果这不是您本人的操作，请忽略此邮件。</p>
-      </div>
-    `
+      `
+    })
   });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Brevo API Error: ${err}`);
+  }
 }
 
-// 1. 发送验证码 (核心逻辑修改)
+// 1. 发送验证码
 app.post('/auth/send-code', async (c) => {
   try {
     const { email } = await c.req.json();
@@ -58,10 +60,7 @@ app.post('/auth/send-code', async (c) => {
     if (email === c.env.ADMIN_USER) return c.json({ message: '请输入管理员密码' });
 
     // === 核心限制：必须是 QQ 邮箱 ===
-    // 使用正则严格匹配，只允许 数字@qq.com
-    // 如果你想允许英文名的QQ邮箱，可以用 /@qq\.com$/
     const qqEmailRegex = /^[a-zA-Z0-9._-]+@qq\.com$/;
-    
     if (!qqEmailRegex.test(email)) {
         return c.json({ error: '本站仅开放 QQ 邮箱注册，请使用 QQ 邮箱' }, 400);
     }
@@ -69,11 +68,10 @@ app.post('/auth/send-code', async (c) => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 5 * 60 * 1000;
     
-    // 存入数据库
     await c.env.DB.prepare('INSERT OR REPLACE INTO codes (email, code, expires_at) VALUES (?, ?, ?)').bind(email, code, expiresAt).run();
     
-    // 使用 SMTP 发送
-    await sendEmailBySMTP(c.env, email, code);
+    // 使用 Brevo HTTP API 发送 (最稳)
+    await sendEmailByBrevoAPI(c.env, email, code);
     
     return c.json({ message: '验证码已发送至您的 QQ 邮箱' });
   } catch (e) {
@@ -81,7 +79,7 @@ app.post('/auth/send-code', async (c) => {
   }
 });
 
-// 2. 登录 (保持不变)
+// 2. 登录
 app.post('/auth/login', async (c) => {
   try {
     const { email, code, isAdmin } = await c.req.json();
@@ -111,13 +109,13 @@ app.post('/auth/login', async (c) => {
   }
 });
 
-// 3. 资源列表 (保持不变)
+// 3. 资源列表
 app.get('/resources', async (c) => {
   const list = await c.env.DB.prepare('SELECT id, title, requires_login, view_limit, type, created_at FROM resources ORDER BY id DESC').all();
   return c.json(list.results || []);
 });
 
-// 4. 资源详情 (保持不变)
+// 4. 资源详情
 app.get('/resource/:id', async (c) => {
   const id = c.req.param('id');
   const token = c.req.header('Authorization')?.split(' ')[1];
@@ -140,7 +138,7 @@ app.get('/resource/:id', async (c) => {
   return c.json({ content: resource.content, type: resource.type });
 });
 
-// 5. 发布 (保持不变)
+// 5. 发布
 app.post('/admin/create', async (c) => {
   try {
     const token = c.req.header('Authorization')?.split(' ')[1];
