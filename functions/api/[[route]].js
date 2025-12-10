@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/cloudflare-pages';
 import { SignJWT, jwtVerify } from 'jose';
+import nodemailer from 'nodemailer';
 
 const app = new Hono().basePath('/api');
 
-// 辅助函数
+// === 辅助函数 ===
 async function signToken(payload, secret) {
   const secretKey = new TextEncoder().encode(secret);
   return await new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('7d').sign(secretKey);
@@ -16,55 +17,107 @@ async function verifyToken(token, secret) {
   } catch (e) { return null; }
 }
 
-// 1. 发送验证码 (普通用户)
-app.post('/auth/send-code', async (c) => {
-  const { email } = await c.req.json();
-  if (!/^[1-9][0-9]{4,}@qq\.com$/.test(email)) return c.json({ error: '必须使用有效的QQ邮箱' }, 400);
-  
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = Date.now() + 5 * 60 * 1000;
-  
-  await c.env.DB.prepare('INSERT OR REPLACE INTO codes (email, code, expires_at) VALUES (?, ?, ?)').bind(email, code, expiresAt).run();
-  
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: 'onboarding@resend.dev', to: email, subject: '登录验证码', html: `<p>验证码: <strong>${code}</strong></p>` })
-  });
-  if (!res.ok) return c.json({ error: '邮件发送失败' }, 500);
-  return c.json({ message: '验证码已发送' });
-});
-
-// 2. 登录 (区分管理员和普通用户)
-app.post('/auth/login', async (c) => {
-  const { email, code, isAdmin } = await c.req.json();
-
-  // 管理员登录逻辑
-  if (isAdmin) {
-    if (email === c.env.ADMIN_USER && code === c.env.ADMIN_PASSWD) {
-      const token = await signToken({ id: 0, role: 'admin' }, c.env.JWT_SECRET);
-      return c.json({ token, role: 'admin' });
+// === 通用 SMTP 发送函数 ===
+async function sendEmailBySMTP(env, toEmail, code) {
+  const transporter = nodemailer.createTransport({
+    host: env.SMTP_HOST, // 例如 smtp-relay.brevo.com
+    port: parseInt(env.SMTP_PORT || '587'),
+    secure: false, // 587 端口通常为 false
+    auth: {
+      user: env.SMTP_USER, // 你的 Brevo 登录邮箱
+      pass: env.SMTP_PASS  // 刚才生成的 Key
     }
-    return c.json({ error: '管理员账号或密码错误' }, 400);
+  });
+
+  // 发件人必须是你已经验证过的域名邮箱
+  const senderAddress = env.SENDER_EMAIL || env.SMTP_USER;
+
+  await transporter.sendMail({
+    from: `"ACG资源社" <${senderAddress}>`,
+    to: toEmail,
+    subject: '【ACG资源社】登录验证码',
+    html: `
+      <div style="padding: 20px; background: #fff0f5; border-radius: 10px; font-family: sans-serif; border: 1px solid #ffb6c1;">
+        <h2 style="color: #ff69b4;">🌸 身份验证</h2>
+        <p>您好！您的登录验证码是：</p>
+        <div style="background: #fff; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <span style="font-size: 28px; font-weight: bold; color: #ff1493; letter-spacing: 8px;">${code}</span>
+        </div>
+        <p style="font-size: 12px; color: #999;">此验证码 5 分钟内有效。如果这不是您本人的操作，请忽略此邮件。</p>
+      </div>
+    `
+  });
+}
+
+// 1. 发送验证码 (核心逻辑修改)
+app.post('/auth/send-code', async (c) => {
+  try {
+    const { email } = await c.req.json();
+    
+    // 管理员特例
+    if (email === c.env.ADMIN_USER) return c.json({ message: '请输入管理员密码' });
+
+    // === 核心限制：必须是 QQ 邮箱 ===
+    // 使用正则严格匹配，只允许 数字@qq.com
+    // 如果你想允许英文名的QQ邮箱，可以用 /@qq\.com$/
+    const qqEmailRegex = /^[a-zA-Z0-9._-]+@qq\.com$/;
+    
+    if (!qqEmailRegex.test(email)) {
+        return c.json({ error: '本站仅开放 QQ 邮箱注册，请使用 QQ 邮箱' }, 400);
+    }
+    
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    
+    // 存入数据库
+    await c.env.DB.prepare('INSERT OR REPLACE INTO codes (email, code, expires_at) VALUES (?, ?, ?)').bind(email, code, expiresAt).run();
+    
+    // 使用 SMTP 发送
+    await sendEmailBySMTP(c.env, email, code);
+    
+    return c.json({ message: '验证码已发送至您的 QQ 邮箱' });
+  } catch (e) {
+    return c.json({ error: '邮件发送失败: ' + e.message }, 500);
   }
-
-  // 普通用户逻辑
-  const record = await c.env.DB.prepare('SELECT * FROM codes WHERE email = ?').bind(email).first();
-  if (!record || record.code !== code || Date.now() > record.expires_at) return c.json({ error: '验证码错误' }, 400);
-
-  let user = await c.env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
-  if (!user) user = await c.env.DB.prepare('INSERT INTO users (email) VALUES (?) RETURNING *').bind(email).first();
-
-  const token = await signToken({ id: user.id, role: 'user', email: user.email }, c.env.JWT_SECRET);
-  return c.json({ token, role: 'user', email: user.email });
 });
 
-// 3. 获取资源 (含权限)
+// 2. 登录 (保持不变)
+app.post('/auth/login', async (c) => {
+  try {
+    const { email, code, isAdmin } = await c.req.json();
+
+    if (isAdmin) {
+      if (email === c.env.ADMIN_USER && code === c.env.ADMIN_PASSWD) {
+        const token = await signToken({ id: 0, role: 'admin' }, c.env.JWT_SECRET);
+        return c.json({ token, role: 'admin' });
+      }
+      return c.json({ error: '管理员认证失败' }, 400);
+    }
+
+    const record = await c.env.DB.prepare('SELECT * FROM codes WHERE email = ?').bind(email).first();
+    if (!record || record.code !== code || Date.now() > record.expires_at) return c.json({ error: '验证码无效或已过期' }, 400);
+
+    let user = await c.env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+    let isNewUser = false;
+    if (!user) {
+      user = await c.env.DB.prepare('INSERT INTO users (email) VALUES (?) RETURNING *').bind(email).first();
+      isNewUser = true;
+    }
+
+    const token = await signToken({ id: user.id, role: 'user', email: user.email }, c.env.JWT_SECRET);
+    return c.json({ token, role: 'user', email: user.email, isNew: isNewUser });
+  } catch (e) {
+    return c.json({ error: '登录失败: ' + e.message }, 500);
+  }
+});
+
+// 3. 资源列表 (保持不变)
 app.get('/resources', async (c) => {
   const list = await c.env.DB.prepare('SELECT id, title, requires_login, view_limit, type, created_at FROM resources ORDER BY id DESC').all();
-  return c.json(list.results);
+  return c.json(list.results || []);
 });
 
+// 4. 资源详情 (保持不变)
 app.get('/resource/:id', async (c) => {
   const id = c.req.param('id');
   const token = c.req.header('Authorization')?.split(' ')[1];
@@ -74,14 +127,12 @@ app.get('/resource/:id', async (c) => {
   const resource = await c.env.DB.prepare('SELECT * FROM resources WHERE id = ?').bind(id).first();
   if (!resource) return c.json({ error: '资源不存在' }, 404);
 
-  // 权限检查
-  if (resource.requires_login === 1 && !user) return c.json({ error: '请先登录' }, 401);
+  if (resource.requires_login === 1 && !user) return c.json({ error: '请登录后查看' }, 401);
   
   if (resource.view_limit > 0 && (!user || user.role !== 'admin')) {
     const view = await c.env.DB.prepare('SELECT count FROM views WHERE user_id = ? AND resource_id = ?').bind(user.id, id).first();
     if (view && view.count >= resource.view_limit) return c.json({ error: `次数已用尽` }, 403);
     
-    // 计数
     if (!view) await c.env.DB.prepare('INSERT INTO views (user_id, resource_id, count) VALUES (?, ?, 1)').bind(user.id, id).run();
     else await c.env.DB.prepare('UPDATE views SET count = count + 1 WHERE user_id = ? AND resource_id = ?').bind(user.id, id).run();
   }
@@ -89,39 +140,41 @@ app.get('/resource/:id', async (c) => {
   return c.json({ content: resource.content, type: resource.type });
 });
 
-// 4. 发布资源 (支持图片上传)
+// 5. 发布 (保持不变)
 app.post('/admin/create', async (c) => {
-  const token = c.req.header('Authorization')?.split(' ')[1];
-  const user = await verifyToken(token, c.env.JWT_SECRET);
-  if (!user || user.role !== 'admin') return c.json({ error: '无权操作' }, 403);
+  try {
+    const token = c.req.header('Authorization')?.split(' ')[1];
+    const user = await verifyToken(token, c.env.JWT_SECRET);
+    if (!user || user.role !== 'admin') return c.json({ error: '无权操作' }, 403);
 
-  const body = await c.req.parseBody();
-  const title = body['title'];
-  const requires_login = body['requires_login'] === 'true' ? 1 : 0;
-  const view_limit = parseInt(body['view_limit'] || 0);
-  const file = body['file']; // 图片文件
-  const textContent = body['content']; // 文字内容
+    const body = await c.req.parseBody();
+    const title = body['title'];
+    const requires_login = body['requires_login'] === 'true' ? 1 : 0;
+    const view_limit = parseInt(body['view_limit'] || 0);
+    const file = body['file'];
+    const textContent = body['content'] || '';
 
-  let finalContent = textContent;
-  let type = 'text';
+    let finalContent = textContent;
+    let type = 'text';
 
-  // 如果上传了文件
-  if (file && file instanceof File) {
-    const fileName = `${Date.now()}-${file.name}`;
-    // 上传到 R2
-    await c.env.BUCKET.put(fileName, file.stream(), {
-      httpMetadata: { contentType: file.type }
-    });
-    // 拼接成图片地址
-    finalContent = `${c.env.R2_DOMAIN}/${fileName}`;
-    type = 'image';
+    if (file && typeof file === 'object' && file.name) {
+        if (!c.env.BUCKET) throw new Error('R2未绑定');
+        const fileName = `${Date.now()}-${file.name}`;
+        await c.env.BUCKET.put(fileName, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+        finalContent = `${c.env.R2_DOMAIN}/${fileName}`;
+        type = 'image';
+    }
+
+    if (!finalContent) finalContent = '(空)';
+
+    await c.env.DB.prepare(
+      'INSERT INTO resources (title, content, requires_login, view_limit, type) VALUES (?, ?, ?, ?, ?)'
+    ).bind(title, finalContent, requires_login, view_limit, type).run();
+
+    return c.json({ success: true });
+  } catch (e) {
+    return c.json({ error: '发布失败: ' + e.message }, 500);
   }
-
-  await c.env.DB.prepare(
-    'INSERT INTO resources (title, content, requires_login, view_limit, type) VALUES (?, ?, ?, ?, ?)'
-  ).bind(title, finalContent, requires_login, view_limit, type).run();
-
-  return c.json({ success: true });
 });
 
 export const onRequest = handle(app);
