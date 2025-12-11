@@ -53,7 +53,7 @@ app.post('/auth/send-code', async (c) => {
   const { email, type } = await c.req.json();
   if (!/^[1-9][0-9]{4,}@qq\.com$/.test(email)) return c.json({ error: '仅支持QQ邮箱' }, 400);
   const banned = await c.env.DB.prepare('SELECT email FROM blacklist WHERE email = ?').bind(email).first();
-  if (banned) return c.json({ error: '账号封禁中' }, 403);
+  if (banned) return c.json({ error: '账号已被永久封禁' }, 403);
   const user = await c.env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
   if (type === 'register' && user) return c.json({ error: '已注册' }, 400);
   if (type === 'reset' && !user) return c.json({ error: '未注册' }, 400);
@@ -63,7 +63,7 @@ app.post('/auth/send-code', async (c) => {
   return c.json({ success: true });
 });
 
-// 2. 注册 (修改：初始钥匙为 1)
+// 2. 注册
 app.post('/auth/register', async (c) => {
   const { email, code, username, password } = await c.req.json();
   const banned = await c.env.DB.prepare('SELECT email FROM blacklist WHERE email = ?').bind(email).first();
@@ -72,7 +72,6 @@ app.post('/auth/register', async (c) => {
   if (!rec || rec.code !== code || Date.now() > rec.expires_at) return c.json({ error: '验证码无效' }, 400);
   if (await c.env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first()) return c.json({ error: '用户名已存在' }, 400);
   
-  // 修改这里：daily_limit 默认为 1
   const res = await c.env.DB.prepare('INSERT INTO users (email, username, password_hash, daily_limit, last_calc_date) VALUES (?, ?, ?, 1, ?) RETURNING *')
     .bind(email, username, await hashPassword(password), new Date().toISOString().split('T')[0]).first();
   const token = await signToken({ id: res.id, role: 'user' }, c.env.JWT_SECRET);
@@ -89,6 +88,11 @@ app.post('/auth/login', async (c) => {
   }
   let user = await c.env.DB.prepare('SELECT * FROM users WHERE (email = ? OR username = ?) AND password_hash = ?').bind(loginId, loginId, await hashPassword(password)).first();
   if (!user) return c.json({ error: '账号或密码错误' }, 400);
+  
+  // 检查是否被拉黑 (虽然删除了账号，但为了防止残留数据登录)
+  const banned = await c.env.DB.prepare('SELECT email FROM blacklist WHERE email = ?').bind(user.email).first();
+  if (banned) return c.json({ error: '该账号已被永久拉黑' }, 403);
+
   user = await syncUserQuota(c.env, user, new Date().toISOString().split('T')[0]);
   const token = await signToken({ id: user.id, role: 'user' }, c.env.JWT_SECRET);
   return c.json({ token, user });
@@ -103,11 +107,11 @@ app.post('/auth/reset-password', async (c) => {
   return c.json({ success: true });
 });
 
-// 5. 获取公共首页 (文章列表)
+// 5. 获取公共首页
 app.get('/public/home', async (c) => {
   const q = c.req.query('q');
-  const tagId = c.req.query('tagId');     // 具体某个标签ID筛选
-  const catId = c.req.query('catId');     // 分类ID筛选
+  const tagId = c.req.query('tagId');
+  const catId = c.req.query('catId');
 
   const categories = await c.env.DB.prepare('SELECT * FROM categories ORDER BY sort_order').all();
   
@@ -126,11 +130,10 @@ app.get('/public/home', async (c) => {
   if (tagId) { conditions.push('rt.tag_id = ?'); params.push(tagId); }
 
   if (conditions.length > 0) sql += ' WHERE ' + conditions.join(' AND ');
-  sql += ` ORDER BY r.id DESC LIMIT 100`; // 限制数量防止过大
+  sql += ` ORDER BY r.id DESC LIMIT 100`;
 
   const resources = await c.env.DB.prepare(sql).bind(...params).all();
 
-  // 获取这些资源的标签
   const resourceIds = resources.results.map(r => r.id);
   let resTagsMap = {};
   if(resourceIds.length > 0) {
@@ -157,15 +160,22 @@ app.get('/public/home', async (c) => {
   return c.json({ categories: categories.results, resources: safeResources });
 });
 
-// 6. 【新】获取标签墙 (用于展示 艺人/番组 图片列表)
+// 6. 【修正】获取标签墙 (只显示已关联文章的标签)
 app.get('/public/tags', async (c) => {
     const type = c.req.query('type'); // '番组' 或 '艺人'
     if (!type) return c.json([]);
-    const res = await c.env.DB.prepare('SELECT * FROM tags WHERE type = ? ORDER BY id DESC').bind(type).all();
+    // 关键修正：使用 DISTINCT 和 JOIN 来确保只返回有关联文章的标签
+    const res = await c.env.DB.prepare(`
+        SELECT DISTINCT t.* 
+        FROM tags t 
+        JOIN resource_tags rt ON t.id = rt.tag_id 
+        WHERE t.type = ? 
+        ORDER BY t.id DESC
+    `).bind(type).all();
     return c.json(res.results);
 });
 
-// 7. 辅助: 查找标签图片 (用于管理员自动填入)
+// 7. 辅助: 查找标签图片
 app.get('/public/tag-image', async (c) => {
     const name = c.req.query('name');
     const type = c.req.query('type');
@@ -188,27 +198,23 @@ app.get('/user/info', async (c) => {
   return c.json({ user: { id: user.id, username: user.username, email: user.email, is_muted: user.is_muted }, quota: { total: finalLimit, used: used, remaining: Math.max(0, finalLimit - used), isTemp } });
 });
 
-// 9. 解锁内容
+// 9. 解锁
 app.post('/resource/unlock', async (c) => {
   const token = c.req.header('Authorization')?.split(' ')[1];
   const payload = await verifyToken(token, c.env.JWT_SECRET);
   if (!payload) return c.json({ error: '请登录' }, 401);
   if (payload.role === 'admin') return c.json({ error: '管理员无需解锁' });
-  
   const { resourceId } = await c.req.json();
   const userId = payload.id;
   const today = new Date().toISOString().split('T')[0];
-  
   const isUnlocked = await c.env.DB.prepare('SELECT 1 FROM unlocked_items WHERE user_id = ? AND resource_id = ? AND date_str = ?').bind(userId, resourceId, today).first();
   if (!isUnlocked) {
     let user = await c.env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
     user = await syncUserQuota(c.env, user, today);
     let limit = user.daily_limit;
     if (user.temp_quota_config) { try { const c = JSON.parse(user.temp_quota_config); if (today >= c.start && today <= c.end) limit = c.limit; } catch(e){} }
-    
     const usedRes = await c.env.DB.prepare('SELECT COUNT(*) as c FROM unlocked_items WHERE user_id = ? AND date_str = ?').bind(userId, today).first();
     if (usedRes.c >= limit) return c.json({ error: `今日钥匙已用完` }, 403);
-    
     await c.env.DB.prepare('INSERT INTO unlocked_items (user_id, resource_id, date_str) VALUES (?, ?, ?)').bind(userId, resourceId, today).run();
     await c.env.DB.prepare('UPDATE users SET last_unlock_date = ? WHERE id = ?').bind(today, userId).run();
   }
@@ -216,7 +222,7 @@ app.post('/resource/unlock', async (c) => {
   return c.json({ fullContent: JSON.parse(res.content_json) });
 });
 
-// 10. 互动功能
+// 10. 互动
 async function checkMute(env, userId) { const u = await env.DB.prepare('SELECT is_muted FROM users WHERE id = ?').bind(userId).first(); return u && u.is_muted === 1; }
 app.post('/resource/comment', async (c) => {
   const t = c.req.header('Authorization')?.split(' ')[1]; const u = await verifyToken(t, c.env.JWT_SECRET); if (!u) return c.json({error:'未登录'},401); if(await checkMute(c.env, u.id)) return c.json({error:'禁言中'},403);
@@ -237,6 +243,20 @@ app.post('/admin/users/batch', async (c) => {
     else if(action==='ban') { const users = await c.env.DB.prepare(`SELECT email FROM users WHERE id IN (${ph})`).bind(...userIds).all(); for(const us of users.results) await c.env.DB.prepare('INSERT OR IGNORE INTO blacklist (email, reason) VALUES (?, "批量拉黑")').bind(us.email).run(); await c.env.DB.prepare(`DELETE FROM users WHERE id IN (${ph})`).bind(...userIds).run(); }
     return c.json({success:true});
 });
+
+// 【新】黑名单管理 API
+app.get('/admin/blacklist', async (c) => {
+    const t = c.req.header('Authorization')?.split(' ')[1]; const u = await verifyToken(t, c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403);
+    const res = await c.env.DB.prepare('SELECT * FROM blacklist ORDER BY created_at DESC').all();
+    return c.json(res.results);
+});
+app.post('/admin/blacklist/delete', async (c) => {
+    const t = c.req.header('Authorization')?.split(' ')[1]; const u = await verifyToken(t, c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403);
+    const { email } = await c.req.json();
+    await c.env.DB.prepare('DELETE FROM blacklist WHERE email = ?').bind(email).run();
+    return c.json({success:true});
+});
+
 app.post('/admin/resource', async (c) => {
   const t = c.req.header('Authorization')?.split(' ')[1]; const u = await verifyToken(t, c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403);
   const { id, title, category_id, blocks, manualDate, tags } = await c.req.json();
@@ -251,7 +271,7 @@ app.post('/admin/resource', async (c) => {
   }
   if (tags && tags.length > 0) {
       for (const tag of tags) {
-          if (!tag.name) continue; // 跳过空标签
+          if (!tag.name) continue; 
           let existing = await c.env.DB.prepare('SELECT id, image_url FROM tags WHERE name = ? AND type = ?').bind(tag.name, tag.type).first();
           let tagId;
           if (existing) {
@@ -266,6 +286,7 @@ app.post('/admin/resource', async (c) => {
   }
   return c.json({ success: true });
 });
+
 app.get('/admin/resource/:id', async (c) => {
   const t = c.req.header('Authorization')?.split(' ')[1]; const u = await verifyToken(t, c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403);
   const r = await c.env.DB.prepare('SELECT * FROM resources WHERE id = ?').bind(c.req.param('id')).first();
