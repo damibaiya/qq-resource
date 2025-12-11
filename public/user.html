@@ -2,19 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>个人中心 - 蓝鲸小站</title>
+    <title>个人中心</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <script>
-        // 设备检测 (需求5)
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (!isMobile) {
-            document.write('<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f9ff;color:#334155;font-family:sans-serif;font-weight:bold;text-align:center;padding:20px;"><h1>🚫 蓝鲸小站仅支持移动端访问<br><span style="font-size:14px;font-weight:normal;color:#64748b;margin-top:10px;display:block;">请使用手机或平板设备浏览，获得最佳体验。</span></h1></div>');
-            document.close();
-            throw new Error("PC Blocked");
-        }
-    </script>
     <style>[x-cloak]{display:none!important} body{background:#f8fafc;}</style>
 </head>
 <body x-data="userCenter()">
@@ -22,9 +13,7 @@
         <a href="/" class="text-blue-600 font-bold">&larr; 返回首页</a>
         <span class="font-bold text-gray-700">个人中心</span>
     </nav>
-
     <main class="p-4 space-y-6 max-w-md mx-auto" x-show="user" x-cloak>
-        <!-- 用户信息卡片 -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-blue-50 flex items-center gap-4">
             <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl font-bold shadow-inner" x-text="user.username[0].toUpperCase()"></div>
             <div>
@@ -33,108 +22,48 @@
                 <div x-show="user.is_muted" class="mt-1 bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded inline-block font-bold">🚫 已被禁言</div>
             </div>
         </div>
-
-        <!-- 钥匙卡片 -->
         <div class="bg-gradient-to-r from-blue-500 to-cyan-400 p-6 rounded-2xl shadow-lg text-white relative overflow-hidden">
             <div class="absolute -right-6 -top-6 text-white/10 text-9xl">🗝️</div>
             <div class="relative z-10">
                 <p class="text-blue-100 text-sm mb-1">今日剩余钥匙</p>
-                <div class="flex items-baseline gap-2">
-                    <span class="text-4xl font-bold" x-text="quota.remaining"></span>
-                    <span class="text-sm opacity-80">/ <span x-text="quota.total"></span> 把</span>
-                </div>
-                <div class="mt-4 text-xs bg-white/20 p-2 rounded backdrop-blur-sm">
-                    <strong>🔑 获取规则：</strong><br>
-                    连续每天解锁内容，次日钥匙 +1 (上限3把)。<br>
-                    中断则重置为 1 把。
-                </div>
+                <div class="flex items-baseline gap-2"><span class="text-4xl font-bold" x-text="quota.remaining"></span><span class="text-sm opacity-80">/ <span x-text="quota.total"></span> 把</span></div>
+                <div class="mt-4 text-xs bg-white/20 p-2 rounded backdrop-blur-sm"><strong>🔑 规则：</strong> 连续解锁次日+1 (上限3)，中断重置为1。</div>
             </div>
         </div>
-
-        <!-- 功能菜单 -->
         <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 divide-y">
-            <button @click="openChat" class="w-full p-4 text-left flex justify-between items-center hover:bg-gray-50">
-                <span class="flex items-center gap-2">📩 私信管理员</span>
-                <span class="text-gray-300">&rsaquo;</span>
-            </button>
-            <button @click="showDonate=true" class="w-full p-4 text-left flex justify-between items-center hover:bg-gray-50 text-pink-500 font-bold">
-                <span class="flex items-center gap-2">❤️ 捐赠支持</span>
-                <span class="text-gray-300">&rsaquo;</span>
-            </button>
-            <button @click="logout" class="w-full p-4 text-left flex justify-between items-center hover:bg-red-50 text-red-500">
-                <span class="flex items-center gap-2">🚪 退出登录</span>
-            </button>
+            <button @click="openChat" class="w-full p-4 text-left flex justify-between items-center hover:bg-gray-50"><span class="flex items-center gap-2">📩 私信管理员</span><span class="text-gray-300">&rsaquo;</span></button>
+            <button @click="showDonate=true" class="w-full p-4 text-left flex justify-between items-center hover:bg-gray-50 text-pink-500 font-bold"><span class="flex items-center gap-2">❤️ 捐赠支持</span><span class="text-gray-300">&rsaquo;</span></button>
+            <button @click="logout" class="w-full p-4 text-left flex justify-between items-center hover:bg-red-50 text-red-500"><span class="flex items-center gap-2">🚪 退出登录</span></button>
         </div>
     </main>
 
-    <!-- 捐赠弹窗 -->
+    <!-- 捐赠弹窗 (图片已修复) -->
     <div x-show="showDonate" x-cloak class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50" @click.self="showDonate=false">
         <div class="bg-white p-4 rounded-2xl max-w-sm w-full text-center">
-            <h3 class="font-bold text-lg mb-2 text-pink-500">感谢您的支持！</h3>
-            <p class="text-xs text-gray-400 mb-4">保存图片扫码支持</p>
-            <!-- 替换后的图片 -->
+            <h3 class="font-bold text-lg mb-2 text-pink-500">感谢支持！</h3>
+            <p class="text-xs text-gray-400 mb-4">保存图片扫码</p>
             <img src="https://pub-fed8f493f92c44b0a016b5efefebca46.r2.dev/code.png" class="w-full rounded-xl mb-4 shadow-lg">
             <button @click="showDonate=false" class="w-full py-2 bg-gray-100 rounded-lg text-sm font-bold">关闭</button>
         </div>
     </div>
 
-    <!-- 私信弹窗 (复用之前逻辑) -->
+    <!-- 私信弹窗 -->
     <div x-show="showChat" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" @click.self="showChat=false">
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col h-[500px]">
-            <div class="p-3 border-b flex justify-between items-center bg-blue-50 rounded-t-2xl">
-                <span class="font-bold text-blue-600">与管理员对话</span>
-                <button @click="showChat=false" class="text-2xl text-gray-400 leading-none">&times;</button>
-            </div>
-            <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50" id="chatBox">
-                <template x-for="msg in messages" :key="msg.id">
-                    <div class="flex flex-col" :class="msg.sender==='user'?'items-end':'items-start'">
-                        <div class="max-w-[80%] p-2 rounded-xl text-sm" :class="msg.sender==='user'?'bg-blue-500 text-white rounded-tr-none':'bg-white text-gray-700 border rounded-tl-none'">
-                            <span x-text="msg.content"></span>
-                        </div>
-                        <span class="text-[10px] text-gray-400 mt-1" x-text="new Date(msg.created_at).toLocaleString()"></span>
-                    </div>
-                </template>
-                <div x-show="messages.length===0" class="text-center text-gray-400 text-xs mt-10">暂无消息</div>
-            </div>
-            <div class="p-3 border-t bg-white rounded-b-2xl flex gap-2">
-                <input type="text" x-model="msgInput" class="flex-1 border bg-gray-50 rounded-lg p-2 text-sm outline-none" placeholder="输入...">
-                <button @click="sendMsg" class="bg-blue-600 text-white px-4 rounded-lg text-sm font-bold">发送</button>
-            </div>
+            <div class="p-3 border-b flex justify-between items-center bg-blue-50 rounded-t-2xl"><span class="font-bold text-blue-600">与管理员对话</span><button @click="showChat=false" class="text-2xl text-gray-400 leading-none">&times;</button></div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50" id="chatBox"><template x-for="msg in messages" :key="msg.id"><div class="flex flex-col" :class="msg.sender==='user'?'items-end':'items-start'"><div class="max-w-[80%] p-2 rounded-xl text-sm" :class="msg.sender==='user'?'bg-blue-500 text-white rounded-tr-none':'bg-white text-gray-700 border rounded-tl-none'"><span x-text="msg.content"></span></div><span class="text-[10px] text-gray-400 mt-1" x-text="new Date(msg.created_at).toLocaleString()"></span></div></template><div x-show="messages.length===0" class="text-center text-gray-400 text-xs mt-10">暂无消息</div></div>
+            <div class="p-3 border-t bg-white rounded-b-2xl flex gap-2"><input type="text" x-model="msgInput" class="flex-1 border bg-gray-50 rounded-lg p-2 text-sm outline-none" placeholder="输入..."><button @click="sendMsg" class="bg-blue-600 text-white px-4 rounded-lg text-sm font-bold">发送</button></div>
         </div>
     </div>
 
     <script>
         function userCenter() {
             return {
-                user: {}, quota: {}, showDonate: false, showChat: false, messages: [], msgInput: '',
-                token: localStorage.getItem('token'),
-                
-                async init() {
-                    if(!this.token) location.href = '/';
-                    const res = await fetch('/api/user/info', { headers: {'Authorization': `Bearer ${this.token}`} });
-                    if(res.ok) {
-                        const data = await res.json();
-                        this.user = data.user; this.quota = data.quota;
-                    } else this.logout();
-                },
+                user: {}, quota: {}, showDonate: false, showChat: false, messages: [], msgInput: '', token: localStorage.getItem('token'),
+                async init() { if(!this.token) location.href = '/'; const res = await fetch('/api/user/info', { headers: {'Authorization': `Bearer ${this.token}`} }); if(res.ok) { const data = await res.json(); this.user = data.user; this.quota = data.quota; } else this.logout(); },
                 logout() { localStorage.clear(); location.href = '/'; },
-                
-                async openChat() {
-                    this.showChat = true;
-                    const res = await fetch('/api/user/messages', { headers: {'Authorization': `Bearer ${this.token}`} });
-                    if(res.ok) { 
-                        this.messages = await res.json(); 
-                        this.$nextTick(() => document.getElementById('chatBox').scrollTop = 9999);
-                    }
-                },
-                async sendMsg() {
-                    if(!this.msgInput) return;
-                    const res = await fetch('/api/user/message/send', {
-                        method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, 
-                        body:JSON.stringify({content:this.msgInput})
-                    });
-                    if(res.ok) { this.msgInput = ''; this.openChat(); } else alert('发送失败(可能被禁言)');
-                }
+                async openChat() { this.showChat = true; const res = await fetch('/api/user/messages', { headers: {'Authorization': `Bearer ${this.token}`} }); if(res.ok) { this.messages = await res.json(); this.$nextTick(() => document.getElementById('chatBox').scrollTop = 9999); } },
+                async sendMsg() { if(!this.msgInput) return; const res = await fetch('/api/user/message/send', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({content:this.msgInput})}); if(res.ok) { this.msgInput = ''; this.openChat(); } else alert('失败'); }
             }
         }
     </script>
