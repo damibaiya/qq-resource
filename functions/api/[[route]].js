@@ -118,7 +118,7 @@ app.get('/public/home', async (c) => {
   return c.json({ categories: categories.results, resources: safeResources });
 });
 
-// 6. 标签墙 (修正逻辑：仅返回有关联文章的标签)
+// 6. 标签墙
 app.get('/public/tags', async (c) => {
     const type = c.req.query('type'); if (!type) return c.json([]);
     const res = await c.env.DB.prepare(`SELECT DISTINCT t.* FROM tags t JOIN resource_tags rt ON t.id = rt.tag_id WHERE t.type = ? ORDER BY t.id DESC`).bind(type).all();
@@ -130,7 +130,7 @@ app.get('/public/tag-image', async (c) => {
     return c.json({ imageUrl: tag ? tag.image_url : '' });
 });
 
-// 7-10. 用户信息/解锁/互动 (保持不变)
+// 7-10. 用户信息/解锁/互动
 app.get('/user/info', async (c) => { const t=c.req.header('Authorization')?.split(' ')[1]; const p=await verifyToken(t,c.env.JWT_SECRET); if(!p) return c.json({error:'未登录'},401); const today=new Date().toISOString().split('T')[0]; let u=await c.env.DB.prepare('SELECT * FROM users WHERE id=?').bind(p.id).first(); if(!u) return c.json({error:'不存在'},404); u=await syncUserQuota(c.env,u,today); const used=(await c.env.DB.prepare('SELECT COUNT(*) as c FROM unlocked_items WHERE user_id=? AND date_str=?').bind(u.id,today).first()).c; let l=u.daily_limit,isT=false; if(u.temp_quota_config){try{const o=JSON.parse(u.temp_quota_config);if(today>=o.start&&today<=o.end){l=o.limit;isT=true}}catch(e){}} return c.json({user:{id:u.id,username:u.username,email:u.email,is_muted:u.is_muted},quota:{total:l,used,remaining:Math.max(0,l-used),isTemp:isT}}); });
 app.post('/resource/unlock', async (c) => { const t=c.req.header('Authorization')?.split(' ')[1]; const p=await verifyToken(t,c.env.JWT_SECRET); if(!p) return c.json({error:'请登录'},401); if(p.role==='admin') return c.json({error:'管理员直接看'}); const {resourceId}=await c.req.json(); const uid=p.id, today=new Date().toISOString().split('T')[0]; const isU=await c.env.DB.prepare('SELECT 1 FROM unlocked_items WHERE user_id=? AND resource_id=? AND date_str=?').bind(uid,resourceId,today).first(); if(!isU){ let u=await c.env.DB.prepare('SELECT * FROM users WHERE id=?').bind(uid).first(); u=await syncUserQuota(c.env,u,today); let l=u.daily_limit; if(u.temp_quota_config){try{const o=JSON.parse(u.temp_quota_config);if(today>=o.start&&today<=o.end)l=o.limit}catch(e){}} const used=(await c.env.DB.prepare('SELECT COUNT(*) as c FROM unlocked_items WHERE user_id=? AND date_str=?').bind(uid,today).first()).c; if(used>=l) return c.json({error:'今日钥匙用完'},403); await c.env.DB.prepare('INSERT INTO unlocked_items(user_id,resource_id,date_str) VALUES(?,?,?)').bind(uid,resourceId,today).run(); await c.env.DB.prepare('UPDATE users SET last_unlock_date=? WHERE id=?').bind(today,uid).run(); } const r=await c.env.DB.prepare('SELECT content_json FROM resources WHERE id=?').bind(resourceId).first(); return c.json({fullContent:JSON.parse(r.content_json)}); });
 async function checkMute(env, uid) { const u=await env.DB.prepare('SELECT is_muted FROM users WHERE id=?').bind(uid).first(); return u&&u.is_muted===1; }
@@ -141,8 +141,6 @@ app.post('/user/message/send', async (c) => { const t=c.req.header('Authorizatio
 app.get('/user/messages', async (c) => { const t=c.req.header('Authorization')?.split(' ')[1]; const u=await verifyToken(t,c.env.JWT_SECRET); if(!u) return c.json({error:'未登录'},401); const r=await c.env.DB.prepare('SELECT * FROM messages WHERE user_id=? ORDER BY id ASC').bind(u.id).all(); return c.json(r.results); });
 
 // === 管理员 API ===
-
-// 1. 自动关联标签管理
 app.get('/admin/tag-keywords', async (c) => {
     const t = c.req.header('Authorization')?.split(' ')[1]; const u = await verifyToken(t, c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403);
     const res = await c.env.DB.prepare('SELECT * FROM tag_keywords ORDER BY id DESC').all();
@@ -155,30 +153,23 @@ app.post('/admin/tag-keywords', async (c) => {
     else if (action === 'del') await c.env.DB.prepare('DELETE FROM tag_keywords WHERE id = ?').bind(id).run();
     return c.json({ success: true });
 });
-
-// 2. 标签管理 (所有标签列表)
 app.get('/admin/tags/all', async (c) => {
     const t = c.req.header('Authorization')?.split(' ')[1]; const u = await verifyToken(t, c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403);
-    // 获取所有标签及关联文章数
-    const res = await c.env.DB.prepare(`
-        SELECT t.*, (SELECT COUNT(*) FROM resource_tags WHERE tag_id = t.id) as post_count 
-        FROM tags t ORDER BY post_count DESC
-    `).all();
+    const res = await c.env.DB.prepare(`SELECT t.*, (SELECT COUNT(*) FROM resource_tags WHERE tag_id = t.id) as post_count FROM tags t ORDER BY post_count DESC`).all();
     return c.json(res.results);
 });
 
-// 3. 发布资源 (增加链接必填校验 & 自动关联逻辑)
+// 3. 发布资源 (【修正】链接必填校验)
 app.post('/admin/resource', async (c) => {
   const t = c.req.header('Authorization')?.split(' ')[1]; const u = await verifyToken(t, c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403);
   const { id, title, category_id, blocks, manualDate, tags } = await c.req.json();
   
-  // 校验：至少有一条链接
-  const hasLink = blocks.some(b => b.type === 'link');
-  if (!hasLink) return c.json({ error: '必须包含至少一条链接' }, 400);
+  // 核心校验：必须包含至少一条非空的链接
+  const hasValidLink = blocks.some(b => b.type === 'link' && b.value && b.value.trim() !== '');
+  if (!hasValidLink) return c.json({ error: '发布失败：必须包含至少一条有效的链接！' }, 400);
 
   let dateStr = manualDate || parseDateFromTitle(title) || "日期不详";
   let resourceId = id;
-  
   if (id) {
     await c.env.DB.prepare('UPDATE resources SET title=?, category_id=?, content_json=?, custom_date=? WHERE id=?').bind(title, category_id, JSON.stringify(blocks), dateStr, id).run();
     await c.env.DB.prepare('DELETE FROM resource_tags WHERE resource_id = ?').bind(id).run();
@@ -187,23 +178,20 @@ app.post('/admin/resource', async (c) => {
     resourceId = res.id;
   }
 
-  // === 自动标签关联逻辑 ===
-  // 1. 获取所有关键词规则
+  // 自动标签匹配 (支持多标签)
   const rules = await c.env.DB.prepare('SELECT * FROM tag_keywords').all();
-  // 2. 拼接全文 (标题 + 文本内容)
   const fullText = title + blocks.filter(b => b.type === 'text').map(b => b.value).join(' ');
-  // 3. 匹配并添加
   let finalTags = [...(tags || [])];
+  
   for (const rule of rules.results) {
       if (fullText.includes(rule.keyword)) {
-          // 检查是否已存在
+          // 避免重复添加完全相同的标签 (name+type)
           if (!finalTags.find(ft => ft.name === rule.tag_name && ft.type === rule.tag_type)) {
               finalTags.push({ name: rule.tag_name, type: rule.tag_type });
           }
       }
   }
 
-  // 保存标签 (复用之前逻辑)
   if (finalTags.length > 0) {
       for (const tag of finalTags) {
           if (!tag.name) continue;
@@ -213,15 +201,7 @@ app.post('/admin/resource', async (c) => {
               tagId = existing.id;
               if (tag.image_url) await c.env.DB.prepare('UPDATE tags SET image_url = ? WHERE id = ?').bind(tag.image_url, tagId).run();
           } else {
-              // 尝试自动查找旧图 (如果没填)
-              let img = tag.image_url;
-              if (!img) {
-                  // 这里其实有点递归，但在新标签创建时，如果库里没有，就真的没有了。
-                  // 如果是手动添加的标签但没填图，前面existing逻辑会处理。
-                  // 这里主要是为了自动关联的标签，如果之前有重名的标签（但type不同等情况极少），或者就是新标签。
-                  // 最好的方式是：如果这里是新标签，就不填图。
-              }
-              const newTag = await c.env.DB.prepare('INSERT INTO tags (name, type, image_url) VALUES (?, ?, ?) RETURNING id').bind(tag.name, tag.type, img || '').first();
+              const newTag = await c.env.DB.prepare('INSERT INTO tags (name, type, image_url) VALUES (?, ?, ?) RETURNING id').bind(tag.name, tag.type, tag.image_url || '').first();
               tagId = newTag.id;
           }
           await c.env.DB.prepare('INSERT INTO resource_tags (resource_id, tag_id) VALUES (?, ?)').bind(resourceId, tagId).run();
