@@ -13,12 +13,9 @@
     <style>
         [x-cloak] { display: none !important; } 
         body { background: #f0f9ff; color: #334155; font-family: sans-serif; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
-        ::-webkit-scrollbar-track { background: transparent; }
     </style>
 </head>
-<body x-data="app()">
+<body x-data="app()" @scroll.window="handleScroll">
     <nav class="bg-white/95 backdrop-blur shadow-sm sticky top-0 z-40 border-b border-blue-100">
         <div class="max-w-5xl mx-auto px-4 h-14 flex justify-between items-center">
             <a href="/" class="text-xl font-bold text-blue-600 tracking-wider flex items-center gap-2"><span>🐳</span> 蓝鲸小站</a>
@@ -37,7 +34,6 @@
     </nav>
 
     <main class="max-w-4xl mx-auto px-4 py-6">
-        <!-- 搜索与排序 -->
         <div class="flex gap-2 mb-4">
             <input type="text" x-model="searchQ" @keyup.enter="resetAndSearch" placeholder="🔍 搜标题/日期..." class="flex-1 p-2.5 rounded-lg border border-blue-100 text-sm outline-none focus:ring-2 focus:ring-blue-200">
             <select x-model="sortType" class="p-2 rounded-lg border border-blue-100 text-xs outline-none bg-white">
@@ -45,7 +41,6 @@
             </select>
         </div>
 
-        <!-- 导航 Tab -->
         <div class="flex flex-col gap-2 mb-4">
             <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 <button @click="resetFilters()" :class="!viewMode && !currentCat ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 border'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition">全部</button>
@@ -53,12 +48,11 @@
                     <button @click="filterCat(cat.id)" :class="currentCat===cat.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 border'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition" x-text="cat.name"></button>
                 </template>
                 <div class="w-px bg-gray-300 h-5 self-center mx-1"></div>
-                <button @click="showTagWall('番组')" :class="viewMode==='tags' && currentTagType==='番组' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 border border-purple-100'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition">📺 番组索引</button>
-                <button @click="showTagWall('艺人')" :class="viewMode==='tags' && currentTagType==='艺人' ? 'bg-pink-600 text-white' : 'bg-white text-pink-600 border border-pink-100'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition">🎤 艺人索引</button>
+                <button @click="showTagWall('番组')" :class="viewMode==='tags' && currentTagType==='番组' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 border border-purple-100'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition">📺 番组</button>
+                <button @click="showTagWall('艺人')" :class="viewMode==='tags' && currentTagType==='艺人' ? 'bg-pink-600 text-white' : 'bg-white text-pink-600 border border-pink-100'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition">🎤 艺人</button>
             </div>
         </div>
 
-        <!-- 视图1: 标签图片墙 -->
         <div x-show="viewMode === 'tags'" class="animate-fade-in">
             <div class="mb-2 text-xs text-gray-400" x-text="'点击图片查看 ' + currentTagType + ' 列表：'"></div>
             <div class="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -72,49 +66,36 @@
                     </div>
                 </template>
             </div>
-            <div x-show="tags.length === 0" class="text-center py-10 text-gray-400 text-xs">该分类下暂无标签</div>
+            <div x-show="tags.length === 0" class="text-center py-10 text-gray-400 text-xs">暂无标签</div>
         </div>
 
-        <!-- 视图2: 文章列表 -->
         <div x-show="viewMode === 'list'" class="space-y-4 min-h-[300px] animate-fade-in">
             <div x-show="currentTagId" class="flex justify-between items-center bg-blue-50 p-2 rounded-lg text-xs text-blue-600 mb-2">
-                <span>正在显示标签包含此内容的帖子</span>
-                <button @click="showTagWall(currentTagType)" class="underline">返回标签墙</button>
+                <span>正在显示标签筛选结果</span><button @click="showTagWall(currentTagType)" class="underline">返回标签墙</button>
             </div>
-
             <template x-for="item in processedResources" :key="item.id">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-blue-50 hover:shadow-md transition cursor-pointer" @click="openDetail(item)">
                     <div class="flex flex-wrap gap-1 mb-2">
                         <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded" x-text="getCatName(item.category_id)"></span>
-                        <template x-for="t in item.tags" :key="t.name">
-                            <span class="text-[10px] px-1.5 py-0.5 rounded text-white" :class="t.type==='番组'?'bg-purple-400':'bg-pink-400'" x-text="t.name"></span>
-                        </template>
+                        <template x-for="t in item.tags" :key="t.name"><span class="text-[10px] px-1.5 py-0.5 rounded text-white" :class="t.type==='番组'?'bg-purple-400':'bg-pink-400'" x-text="t.name"></span></template>
                     </div>
                     <h3 class="text-base font-bold text-slate-800 line-clamp-2 mb-2" x-text="item.title"></h3>
-                    <div class="text-xs text-gray-400 flex items-center justify-between">
-                        <span x-text="item.custom_date || '日期不详'"></span>
-                        <div class="flex gap-3">
-                            <span>💬 <span x-text="item.comment_count"></span></span>
-                            <span>❤️ <span x-text="item.like_count"></span></span>
-                        </div>
-                    </div>
+                    <div class="text-xs text-gray-400 flex items-center justify-between"><span x-text="item.custom_date || '日期不详'"></span><div class="flex gap-3"><span>💬 <span x-text="item.comment_count"></span></span><span>❤️ <span x-text="item.like_count"></span></span></div></div>
                 </div>
             </template>
             
-            <!-- 加载状态 -->
             <div class="py-4 text-center">
-                <div x-show="isLoading" class="text-blue-500 text-xs">🚀 正在加载更多...</div>
+                <button x-show="!isLoading && hasMore" @click="loadMore" class="text-blue-500 text-xs border border-blue-200 px-4 py-2 rounded-full hover:bg-blue-50">点击加载更多</button>
+                <div x-show="isLoading" class="text-blue-500 text-xs">🚀 正在加载...</div>
                 <div x-show="!hasMore && processedResources.length > 0" class="text-gray-300 text-xs">没有更多了</div>
                 <div x-show="!isLoading && processedResources.length === 0" class="text-gray-400 text-sm">暂无内容</div>
             </div>
         </div>
     </main>
-
     <footer class="text-center py-6 text-xs text-gray-400 border-t border-blue-50 mt-6">&copy; 蓝鲸小站 Resource</footer>
 
-    <!-- 弹窗部分 (保持不变，仅省略展示，实际代码请包含完整的弹窗) -->
+    <!-- 弹窗部分省略，保持之前一致，请确保包含详情、登录弹窗代码 -->
     <div x-show="detailItem" x-cloak class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <!-- 详情弹窗代码与之前完全一致 -->
         <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] relative" @click.away="detailItem=null">
             <div class="p-5 border-b bg-white rounded-t-2xl z-10 shrink-0 flex justify-between items-start">
                 <div><h2 class="text-lg font-bold text-slate-800 leading-snug" x-text="detailItem?.title"></h2><div class="flex flex-wrap gap-2 mt-2"><template x-if="detailItem?.tags"><template x-for="t in detailItem.tags" :key="t.name"><span class="text-[10px] px-2 py-0.5 rounded-full text-white font-bold" :class="t.type==='番组'?'bg-purple-400':'bg-pink-400'" x-text="t.name"></span></template></template></div></div><button @click="detailItem=null" class="text-gray-400 text-2xl">&times;</button>
@@ -127,18 +108,11 @@
         </div>
     </div>
     
-    <!-- 模态框: 登录/注册/重置 (保持完整) -->
     <div x-show="modalMode" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
             <button @click="modalMode = null" class="absolute top-4 right-4 text-gray-300 text-xl">&times;</button>
-            <div x-show="modalMode === 'login'">
-                <h2 class="text-xl font-bold text-blue-600 mb-4 text-center">登录</h2>
-                <div class="space-y-3"><input type="text" x-model="form.loginId" placeholder="QQ邮箱 / 用户名" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-3 top-2.5 text-xs text-gray-400" x-text="showPwd?'🙈':'👁️'"></button></div><button @click="doLogin" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm">立即登录</button><div class="flex justify-between text-xs text-gray-500 px-1"><button @click="modalMode = 'register'">注册账号</button><button @click="modalMode = 'reset'">找回密码</button></div></div>
-            </div>
-            <div x-show="modalMode === 'register'">
-                <h2 class="text-xl font-bold text-blue-600 mb-4 text-center">注册</h2>
-                <div class="space-y-3"><input type="email" x-model="form.email" placeholder="QQ邮箱" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('register')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="text" x-model="form.username" placeholder="设置用户名" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="设置密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-2 top-2 text-xs" x-text="showPwd?'🙈':'👁️'"></button></div><input :type="showPwd?'text':'password'" x-model="form.confirmPassword" placeholder="确认密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doRegister" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold text-sm mt-2">注册并登录</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">去登录</button></div></div>
-            </div>
+            <div x-show="modalMode === 'login'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">登录</h2><div class="space-y-3"><input type="text" x-model="form.loginId" placeholder="QQ邮箱 / 用户名" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-3 top-2.5 text-xs text-gray-400" x-text="showPwd?'🙈':'👁️'"></button></div><button @click="doLogin" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm">立即登录</button><div class="flex justify-between text-xs text-gray-500 px-1"><button @click="modalMode = 'register'">注册账号</button><button @click="modalMode = 'reset'">找回密码</button></div></div></div>
+            <div x-show="modalMode === 'register'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">注册</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="QQ邮箱" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('register')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="text" x-model="form.username" placeholder="设置用户名" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="设置密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-2 top-2 text-xs" x-text="showPwd?'🙈':'👁️'"></button></div><input :type="showPwd?'text':'password'" x-model="form.confirmPassword" placeholder="确认密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doRegister" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold text-sm mt-2">注册并登录</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">去登录</button></div></div></div>
             <div x-show="modalMode === 'reset'"><h2 class="text-xl font-bold mb-4 text-center">重置密码</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="邮箱" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('reset')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 text-xs rounded-lg font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="password" x-model="form.newPassword" placeholder="新密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doReset" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold">确认</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">返回</button></div></div></div>
         </div>
     </div>
@@ -154,8 +128,6 @@
                 quota: {total:0, remaining:0}, modalMode: null, showCenter: false, detailItem: null,
                 form: { loginId:'', email:'', username:'', password:'', confirmPassword:'', code:'' },
                 searchQ: '', newComment: '', comments: [], timer:0, sortType: 'date-desc', showPwd: false,
-                
-                // 分页相关
                 page: 1, hasMore: true, isLoading: false,
 
                 get processedResources() {
@@ -163,7 +135,6 @@
                     return list.sort((a, b) => {
                         const getDate = (item) => {
                             if (item.custom_date) {
-                                // 简单处理中文日期以支持排序
                                 const s = item.custom_date.replace(/年/g, '/').replace(/月/g, '/').replace(/日/g, '');
                                 const d = new Date(s); if (!isNaN(d)) return d;
                             } return new Date(item.created_at);
@@ -179,25 +150,19 @@
                 async init() { 
                     if(this.token) this.refreshUser(); 
                     this.doSearch(); 
-                    // 监听滚动加载
-                    window.addEventListener('scroll', () => {
-                        const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-                        if (scrollTop + clientHeight >= scrollHeight - 50) {
-                            this.loadMore();
-                        }
-                    });
                 },
-                
-                // 重置并搜索 (第一页)
-                async doSearch() { return this.fetchResources(true); },
-                
-                resetAndSearch() { this.searchQ = this.searchQ; this.doSearch(); },
 
-                async loadMore() {
-                    if (this.isLoading || !this.hasMore) return;
-                    this.page++;
-                    await this.fetchResources(false);
+                // 核心滚动加载逻辑
+                handleScroll() {
+                    const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+                    if (scrollTop + clientHeight >= scrollHeight - 100 && !this.isLoading && this.hasMore) {
+                        this.loadMore();
+                    }
                 },
+
+                async doSearch() { return this.fetchResources(true); },
+                resetAndSearch() { this.searchQ = this.searchQ; this.doSearch(); },
+                async loadMore() { this.page++; await this.fetchResources(false); },
 
                 async fetchResources(isReset) {
                     this.isLoading = true;
@@ -210,12 +175,12 @@
                     try {
                         const res = await fetch(url);
                         const data = await res.json();
-                        
-                        // 只有第一页返回分类
                         if(this.page === 1) this.categories = data.categories;
                         
                         if(data.resources.length > 0) {
-                            this.resources = [...this.resources, ...data.resources];
+                            // 防止重复追加
+                            const newItems = data.resources.filter(n => !this.resources.find(o => o.id === n.id));
+                            this.resources = [...this.resources, ...newItems];
                         }
                         this.hasMore = data.hasMore;
                     } catch(e) { console.error(e); }
@@ -235,7 +200,7 @@
                 openModal(mode) { this.modalMode = mode; this.form = {loginId:'', email:'', username:'', password:'', confirmPassword:'', code:''}; this.showPwd=false; },
                 getCatName(id) { const c = this.categories.find(cat => cat.id == id); return c ? c.name : '未分类'; },
 
-                // 认证
+                // 认证相关
                 async sendCode(type) { if(!this.form.email) return alert('邮箱必填'); const res = await fetch('/api/auth/send-code', {method:'POST', body:JSON.stringify({email:this.form.email, type})}); if(res.ok){ alert('发送成功'); this.timer=60; setInterval(()=>this.timer>0&&this.timer--,1000); } else alert((await res.json()).error); },
                 async doRegister() { if(this.form.password !== this.form.confirmPassword) return alert('两次密码不一致'); const res = await fetch('/api/auth/register', {method:'POST', body:JSON.stringify(this.form)}); const data = await res.json(); if(res.ok) this.loginSuccess(data); else alert(data.error); },
                 async doLogin() { const res = await fetch('/api/auth/login', {method:'POST', body:JSON.stringify({...this.form, isAdmin:false})}); const data = await res.json(); if(res.ok) this.loginSuccess(data); else alert(data.error); },
