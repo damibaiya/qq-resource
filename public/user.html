@@ -137,5 +137,41 @@
             }
         }
     </script>
+    <!-- Toast 容器 -->
+    <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none" id="toast-container"></div>
+    
+    <script>
+        // 全局 Toast 函数
+        window.showToast = (message, type = 'info') => {
+            const container = document.getElementById('toast-container');
+            const el = document.createElement('div');
+            
+            // 根据类型设置颜色
+            let bgClass = 'bg-gray-800';
+            if (type === 'success') bgClass = 'bg-green-600';
+            if (type === 'error') bgClass = 'bg-red-500';
+            if (type === 'warn') bgClass = 'bg-yellow-500';
+    
+            el.className = `${bgClass} text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold opacity-0 transform translate-y-[-10px] transition-all duration-300 pointer-events-auto flex items-center gap-2`;
+            el.innerHTML = `<span>${message}</span>`;
+    
+            container.appendChild(el);
+    
+            // 动画：进入
+            requestAnimationFrame(() => {
+                el.classList.remove('opacity-0', 'translate-y-[-10px]');
+            });
+    
+            // 动画：消失
+            setTimeout(() => {
+                el.classList.add('opacity-0', 'translate-y-[-10px]');
+                setTimeout(() => el.remove(), 300);
+            }, 2000); // 2秒后消失
+        };
+    
+        // 覆盖原生 alert (可选，这样你不用改下面的 JS 代码也能生效)
+        window._originalAlert = window.alert;
+        window.alert = (msg) => showToast(msg);
+    </script>
 </body>
 </html>
