@@ -151,5 +151,55 @@
             }
         }
     </script>
+    <!-- Toast 通知容器 -->
+    <div class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none" id="toast-container"></div>
+    
+    <style>
+        .toast-enter { transform: translateY(-20px); opacity: 0; }
+        .toast-enter-active { transform: translateY(0); opacity: 1; transition: all 0.3s ease-out; }
+        .toast-leave { transform: translateY(0); opacity: 1; }
+        .toast-leave-active { transform: translateY(-20px); opacity: 0; transition: all 0.3s ease-in; }
+    </style>
+    
+    <script>
+        // 全局通知函数
+        window.showToast = (message, type = 'info') => {
+            const container = document.getElementById('toast-container');
+            
+            // 1. 创建元素
+            const el = document.createElement('div');
+            
+            // 2. 根据类型设定颜色图标
+            let styles = 'bg-slate-800 text-white shadow-xl shadow-slate-200/50';
+            let icon = '📢';
+            
+            if (type === 'success') { styles = 'bg-emerald-500 text-white shadow-emerald-200/50'; icon = '✅'; }
+            if (type === 'error')   { styles = 'bg-rose-500 text-white shadow-rose-200/50'; icon = '❌'; }
+            if (type === 'warn')    { styles = 'bg-amber-400 text-white shadow-amber-200/50'; icon = '⚠️'; }
+    
+            el.className = `${styles} px-6 py-3 rounded-full text-sm font-bold flex items-center gap-2 pointer-events-auto toast-enter min-w-[200px] justify-center`;
+            el.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+    
+            // 3. 添加到页面
+            container.appendChild(el);
+    
+            // 4. 动画进入
+            requestAnimationFrame(() => {
+                el.classList.remove('toast-enter');
+                el.classList.add('toast-enter-active');
+            });
+    
+            // 5. 自动消失 (成功3秒，错误4秒)
+            const duration = type === 'error' ? 4000 : 3000;
+            setTimeout(() => {
+                el.classList.remove('toast-enter-active');
+                el.classList.add('toast-leave-active');
+                setTimeout(() => el.remove(), 300); // 动画结束后移除 DOM
+            }, duration);
+        };
+    
+        // 覆盖原生 alert (作为兜底)
+        window.alert = (msg) => showToast(msg, 'warn');
+    </script>
 </body>
 </html>
