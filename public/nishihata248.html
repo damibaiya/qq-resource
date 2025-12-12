@@ -19,7 +19,7 @@
                 <button @click="switchTab('post')" :class="tab==='post'?'text-blue-300':''">发布</button>
                 <button @click="switchTab('list')" :class="tab==='list'?'text-blue-300':''">文章</button>
                 <button @click="switchTab('tags')" :class="tab==='tags'?'text-blue-300':''">标签</button>
-                <button @click="switchTab('keywords')" :class="tab==='keywords'?'text-blue-300':''">关联规则</button>
+                <button @click="switchTab('keywords')" :class="tab==='keywords'?'text-blue-300':''">自动关联</button>
                 <button @click="switchTab('users')" :class="tab==='users'?'text-blue-300':''">用户</button>
                 <button @click="switchTab('msgs')" :class="tab==='msgs'?'text-blue-300':''">私信</button>
                 <button @click="switchTab('cats')" :class="tab==='cats'?'text-blue-300':''">分类</button>
@@ -37,7 +37,7 @@
                     <div class="flex gap-4"><select x-model="post.category_id" class="border p-2 rounded flex-1"><option value="">分类...</option><template x-for="c in categories" :key="c.id"><option :value="c.id" x-text="c.name"></option></template></select><input type="text" x-model="post.manualDate" placeholder="日期" class="border p-2 rounded flex-1"></div>
                     
                     <div class="border p-4 rounded bg-blue-50">
-                        <h3 class="text-sm font-bold text-gray-700 mb-2">🏷️ 标签 (自动关联+手动)</h3>
+                        <h3 class="text-sm font-bold text-gray-700 mb-2">🏷️ 标签 (自动关联)</h3>
                         <div class="space-y-2"><template x-for="(t, idx) in post.tags" :key="idx"><div class="flex gap-2 items-center bg-white p-2 rounded border"><select x-model="t.type" class="border p-1 rounded text-xs"><option value="番组">番组</option><option value="艺人">艺人</option></select><input type="text" x-model="t.name" @blur="autoFillTagImg(idx)" placeholder="标签名" class="border p-1 rounded text-sm flex-1"><input type="text" x-model="t.image_url" placeholder="图片URL" class="border p-1 rounded text-xs w-1/3"><button @click="post.tags.splice(idx,1)" class="text-red-500">✕</button></div></template><button @click="post.tags.push({type:'番组',name:'',image_url:''})" class="text-xs bg-blue-200 px-2 rounded">+标签</button></div>
                     </div>
 
@@ -45,127 +45,40 @@
                         <template x-for="(block, idx) in post.blocks" :key="idx"><div class="flex gap-2 items-center bg-white p-2 rounded border"><span x-text="idx+1" class="text-xs text-gray-400"></span><select x-model="block.type" class="border text-sm p-1 rounded"><option value="text">文本</option><option value="link">链接</option><option value="image">图片</option></select><div class="flex-1 space-y-1"><input type="text" x-model="block.value" class="w-full border p-1 rounded text-sm"><div x-show="block.type==='link'" class="flex gap-2 text-xs"><select x-model="block.linkType" class="border p-1 rounded"><option value="夸克">夸克</option><option value="百度">百度</option><option value="其他">其他</option></select><input x-show="block.linkType==='其他'" type="text" x-model="block.customLinkType" placeholder="类型" class="border p-1 rounded w-20"></div><input x-show="block.type==='image'" type="file" @change="uploadImg($event, idx)" class="text-xs"></div><label class="flex items-center gap-1 text-xs bg-gray-100 p-1 rounded"><input type="checkbox" x-model="block.locked">🔒</label><button @click="post.blocks.splice(idx,1)" class="text-red-500">✕</button></div></template>
                         <div class="flex gap-2"><button @click="addBlock('text')" class="text-xs bg-gray-200 px-2 rounded">+文</button><button @click="addBlock('link')" class="text-xs bg-gray-200 px-2 rounded">+链</button><button @click="addBlock('image')" class="text-xs bg-gray-200 px-2 rounded">+图</button></div>
                     </div>
-                    <button @click="publish" class="w-full bg-blue-600 text-white py-2 rounded">提交 (至少一条链接)</button>
+                    <button @click="publish" class="w-full bg-blue-600 text-white py-2 rounded">提交</button>
                 </div>
             </div>
 
-            <!-- 2. 文章列表 -->
+            <!-- 2. 文章列表 (增加分页) -->
             <div x-show="tab === 'list'" class="bg-white p-6 rounded shadow h-full overflow-y-auto">
-                <div class="flex gap-2 mb-4"><select x-model="filterCatId" @change="loadResources" class="border p-2 rounded"><option value="">全部分类</option><template x-for="c in categories" :key="c.id"><option :value="c.id" x-text="c.name"></option></template></select><input type="text" x-model="searchQ" class="border p-2 flex-1 rounded"><button @click="loadResources" class="bg-blue-600 text-white px-4 rounded">搜</button></div>
+                <div class="flex gap-2 mb-4"><select x-model="filterCatId" @change="page=1;loadResources()" class="border p-2 rounded"><option value="">全部分类</option><template x-for="c in categories" :key="c.id"><option :value="c.id" x-text="c.name"></option></template></select><input type="text" x-model="searchQ" class="border p-2 flex-1 rounded"><button @click="page=1;loadResources()" class="bg-blue-600 text-white px-4 rounded">搜</button></div>
                 <table class="w-full text-sm text-left"><thead class="bg-gray-50"><tr><th>ID</th><th>标题</th><th>分类</th><th>日期</th><th>操作</th></tr></thead><tbody><template x-for="r in resourceList" :key="r.id"><tr class="border-b"><td class="p-2" x-text="r.id"></td><td x-text="r.title"></td><td x-text="getCatName(r.category_id)"></td><td x-text="r.custom_date"></td><td><button @click="editResource(r.id)" class="text-blue-600 mr-2">改</button><button @click="delResource(r.id)" class="text-red-600">删</button></td></tr></template></tbody></table>
+                <div class="flex justify-center gap-4 mt-4 text-sm items-center">
+                    <button @click="prevPage" :disabled="page===1" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">上一页</button>
+                    <span>第 <span x-text="page"></span> 页</span>
+                    <button @click="nextPage" class="px-3 py-1 bg-gray-200 rounded">下一页</button>
+                </div>
             </div>
 
-            <!-- 3. 【重点】标签管理 -->
+            <!-- 其他模块省略... (保持之前代码一致) -->
+            <!-- 3. 标签管理 -->
             <div x-show="tab === 'tags'" class="bg-white p-6 rounded shadow h-full overflow-y-auto">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-lg font-bold">标签管理</h2>
-                    <span class="text-xs text-gray-400">点击标签可修改详情并查看关联帖子</span>
+                <div x-show="editingTag" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                    <h3 class="font-bold text-yellow-700 mb-2">✏️ 编辑标签</h3>
+                    <div class="flex gap-2 items-center mb-2"><select x-model="editingTag.type" class="border p-2 rounded text-sm"><option value="番组">番组</option><option value="艺人">艺人</option></select><input type="text" x-model="editingTag.name" class="border p-2 rounded text-sm flex-1"><input type="text" x-model="editingTag.image_url" class="border p-2 rounded text-sm flex-1"><div class="relative"><input type="file" @change="uploadTagImg" class="absolute inset-0 opacity-0 cursor-pointer"><button class="bg-gray-200 px-3 py-2 rounded text-sm border">上传图</button></div></div>
+                    <div class="flex gap-2"><button @click="updateTag" class="bg-blue-600 text-white px-4 py-1 rounded text-sm">保存</button><button @click="editingTag=null; tagPosts=[]" class="text-gray-500 text-sm">取消</button></div>
                 </div>
-
-                <!-- 标签编辑区 (点击标签后显示) -->
-                <div x-show="editingTag" class="mb-6 p-5 bg-yellow-50 border-2 border-yellow-200 rounded-xl shadow-sm animate-fade-in">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="font-bold text-yellow-800 flex items-center gap-2">
-                            <span>✏️ 编辑标签:</span>
-                            <span x-text="editingTag?.name" class="bg-white px-2 rounded"></span>
-                        </h3>
-                        <button @click="editingTag=null; tagPosts=[]" class="text-gray-400 hover:text-gray-600">✕ 关闭</button>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="space-y-2">
-                            <label class="text-xs font-bold text-gray-500">标签名称</label>
-                            <input type="text" x-model="editingTag.name" class="w-full border p-2 rounded text-sm">
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-xs font-bold text-gray-500">标签种类</label>
-                            <select x-model="editingTag.type" class="w-full border p-2 rounded text-sm bg-white">
-                                <option value="番组">番组</option>
-                                <option value="艺人">艺人</option>
-                            </select>
-                        </div>
-                        <div class="space-y-2 col-span-1 md:col-span-2">
-                            <label class="text-xs font-bold text-gray-500">封面图片</label>
-                            <div class="flex gap-2">
-                                <input type="text" x-model="editingTag.image_url" class="flex-1 border p-2 rounded text-sm" placeholder="图片链接">
-                                <div class="relative overflow-hidden">
-                                    <button class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm border font-bold">上传新图</button>
-                                    <input type="file" @change="uploadTagImg" class="absolute inset-0 opacity-0 cursor-pointer">
-                                </div>
-                            </div>
-                            <div x-show="editingTag.image_url" class="mt-2">
-                                <img :src="editingTag.image_url" class="h-24 rounded border shadow-sm object-cover">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-4 pt-4 border-t border-yellow-200 text-right">
-                        <button @click="updateTag" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-md transition">保存修改</button>
-                    </div>
-                </div>
-
-                <div class="mb-8">
-                    <h3 class="font-bold text-purple-600 mb-3 border-b pb-2">📺 番组标签</h3>
-                    <div class="flex flex-wrap gap-3">
-                        <template x-for="t in allTags.filter(x=>x.type==='番组')" :key="t.id">
-                            <div @click="loadTagPosts(t)" class="border p-2 rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-300 transition flex items-center gap-3 bg-white group" :class="editingTag?.id===t.id?'ring-2 ring-purple-500 border-purple-500 bg-purple-50':''">
-                                <img :src="t.image_url||'https://via.placeholder.com/40'" class="w-10 h-10 rounded object-cover border bg-gray-100">
-                                <div>
-                                    <div class="font-bold text-sm text-gray-700 group-hover:text-purple-700" x-text="t.name"></div>
-                                    <div class="text-[10px] text-gray-400" x-text="t.post_count+' 帖'"></div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <div class="mb-8">
-                    <h3 class="font-bold text-pink-600 mb-3 border-b pb-2">🎤 艺人标签</h3>
-                    <div class="flex flex-wrap gap-3">
-                        <template x-for="t in allTags.filter(x=>x.type==='艺人')" :key="t.id">
-                            <div @click="loadTagPosts(t)" class="border p-2 rounded-lg cursor-pointer hover:bg-pink-50 hover:border-pink-300 transition flex items-center gap-3 bg-white group" :class="editingTag?.id===t.id?'ring-2 ring-pink-500 border-pink-500 bg-pink-50':''">
-                                <img :src="t.image_url||'https://via.placeholder.com/40'" class="w-10 h-10 rounded object-cover border bg-gray-100">
-                                <div>
-                                    <div class="font-bold text-sm text-gray-700 group-hover:text-pink-700" x-text="t.name"></div>
-                                    <div class="text-[10px] text-gray-400" x-text="t.post_count+' 帖'"></div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- 关联帖子列表 -->
-                <div x-show="tagPosts.length > 0" class="border-t pt-6">
-                    <h3 class="font-bold mb-4 text-gray-700 flex items-center gap-2">
-                        <span>📄 关联的帖子</span>
-                        <span class="text-xs font-normal bg-gray-200 px-2 rounded-full" x-text="tagPosts.length"></span>
-                    </h3>
-                    <table class="w-full text-sm text-left bg-white rounded-lg overflow-hidden shadow-sm border">
-                        <thead class="bg-gray-50 text-gray-600"><tr><th class="p-3">ID</th><th class="p-3">标题</th><th class="p-3">操作</th></tr></thead>
-                        <tbody class="divide-y">
-                            <template x-for="r in tagPosts" :key="r.id">
-                                <tr class="hover:bg-blue-50">
-                                    <td class="p-3 font-mono text-gray-400" x-text="r.id"></td>
-                                    <td class="p-3 font-bold text-gray-800" x-text="r.title"></td>
-                                    <td class="p-3"><button @click="editResource(r.id)" class="text-blue-600 font-bold hover:underline">修改帖子</button></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
+                <div class="flex justify-between items-center mb-6"><h2 class="text-lg font-bold">标签列表</h2></div>
+                <div class="mb-6"><h3 class="font-bold text-purple-600 mb-2">📺 番组标签</h3><div class="flex flex-wrap gap-3"><template x-for="t in allTags.filter(x=>x.type==='番组')" :key="t.id"><div @click="loadTagPosts(t)" class="border p-2 rounded cursor-pointer hover:bg-purple-50 flex items-center gap-2"><img :src="t.image_url||'https://via.placeholder.com/30'" class="w-8 h-8 rounded object-cover"><div><div class="font-bold text-sm" x-text="t.name"></div><div class="text-[10px] text-gray-400" x-text="t.post_count+' 帖'"></div></div></div></template></div></div>
+                <div class="mb-6"><h3 class="font-bold text-pink-600 mb-2">🎤 艺人标签</h3><div class="flex flex-wrap gap-3"><template x-for="t in allTags.filter(x=>x.type==='艺人')" :key="t.id"><div @click="loadTagPosts(t)" class="border p-2 rounded cursor-pointer hover:bg-pink-50 flex items-center gap-2"><img :src="t.image_url||'https://via.placeholder.com/30'" class="w-8 h-8 rounded object-cover"><div><div class="font-bold text-sm" x-text="t.name"></div><div class="text-[10px] text-gray-400" x-text="t.post_count+' 帖'"></div></div></div></template></div></div>
+                <div x-show="tagPosts.length > 0" class="border-t pt-4"><h3 class="font-bold mb-2">关联帖子:</h3><table class="w-full text-sm text-left"><thead class="bg-gray-50"><tr><th>ID</th><th>标题</th><th>操作</th></tr></thead><tbody><template x-for="r in tagPosts" :key="r.id"><tr class="border-b"><td class="p-2" x-text="r.id"></td><td x-text="r.title"></td><td><button @click="editResource(r.id)" class="text-blue-600">修改</button></td></tr></template></tbody></table></div>
             </div>
 
             <!-- 4. 自动关联 -->
-            <div x-show="tab === 'keywords'" class="bg-white p-6 rounded shadow h-full overflow-y-auto">
-                <h2 class="text-lg font-bold mb-4">自动标签关联规则</h2>
-                <div class="flex gap-2 mb-4 p-4 bg-gray-50 rounded"><input type="text" x-model="newKw.keyword" placeholder="关键词" class="border p-2 rounded text-sm"><input type="text" x-model="newKw.tagName" placeholder="标签名" class="border p-2 rounded text-sm"><select x-model="newKw.tagType" class="border p-2 rounded text-sm"><option value="艺人">艺人</option><option value="番组">番组</option></select><button @click="addKeyword" class="bg-green-600 text-white px-4 rounded text-sm">添加</button></div>
-                <table class="w-full text-sm text-left"><thead class="bg-gray-50"><tr><th>关键词</th><th>自动关联标签</th><th>操作</th></tr></thead><tbody><template x-for="k in keywords" :key="k.id"><tr class="border-b"><td class="p-3 font-bold" x-text="k.keyword"></td><td x-text="k.tag_name + ' (' + k.tag_type + ')'"></td><td><button @click="delKeyword(k.id)" class="text-red-500">删</button></td></tr></template></tbody></table>
-            </div>
+            <div x-show="tab === 'keywords'" class="bg-white p-6 rounded shadow h-full overflow-y-auto"><h2 class="text-lg font-bold mb-4">自动标签关联规则</h2><div class="flex gap-2 mb-4 p-4 bg-gray-50 rounded"><input type="text" x-model="newKw.keyword" placeholder="关键词" class="border p-2 rounded text-sm"><input type="text" x-model="newKw.tagName" placeholder="标签名" class="border p-2 rounded text-sm"><select x-model="newKw.tagType" class="border p-2 rounded text-sm"><option value="艺人">艺人</option><option value="番组">番组</option></select><button @click="addKeyword" class="bg-green-600 text-white px-4 rounded text-sm">添加</button></div><table class="w-full text-sm text-left"><thead class="bg-gray-50"><tr><th>关键词</th><th>自动关联标签</th><th>操作</th></tr></thead><tbody><template x-for="k in keywords" :key="k.id"><tr class="border-b"><td class="p-3 font-bold" x-text="k.keyword"></td><td x-text="k.tag_name + ' (' + k.tag_type + ')'"></td><td><button @click="delKeyword(k.id)" class="text-red-500">删</button></td></tr></template></tbody></table></div>
 
             <!-- 5. 用户管理 -->
-            <div x-show="tab === 'users'" class="bg-white p-6 rounded shadow h-full overflow-y-auto">
-                <div class="flex justify-between items-center mb-4"><div class="flex gap-2"><button @click="loadUsers" class="text-sm text-blue-500">刷新</button><button @click="showBlacklist=true; loadBlacklist()" class="text-xs bg-gray-800 text-white px-3 py-1 rounded">黑名单</button></div><div class="flex gap-2" x-show="selectedUsers.length>0"><button @click="batchAction('mute')" class="bg-yellow-100 text-xs px-2 rounded">禁言</button><button @click="batchAction('unmute')" class="bg-green-100 text-xs px-2 rounded">解禁</button><button @click="batchAction('delete')" class="bg-red-100 text-xs px-2 rounded">删除</button><button @click="batchAction('ban')" class="bg-black text-white text-xs px-2 rounded">永久拉黑</button></div></div>
-                <table class="w-full text-sm text-left"><thead class="bg-gray-50"><tr><th class="p-3"><input type="checkbox" @change="toggleAll($event)"></th><th>ID</th><th>用户</th><th>邮箱</th><th>状态</th><th>钥匙</th><th>操作</th></tr></thead><tbody><template x-for="u in users" :key="u.id"><tr class="border-b hover:bg-gray-50"><td class="p-3"><input type="checkbox" :value="u.id" x-model="selectedUsers"></td><td x-text="u.id"></td><td x-text="u.username"></td><td x-text="u.email"></td><td><span x-show="u.is_muted" class="text-red-500 font-bold">禁言</span><span x-show="!u.is_muted" class="text-green-500">正常</span></td><td x-text="(u.daily_limit||1)"></td><td><button @click="editQuota(u)" class="text-blue-600">设置</button></td></tr></template></tbody></table>
-                <div x-show="showBlacklist" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded w-96 max-h-[80vh] overflow-y-auto"><div class="flex justify-between mb-4"><h3 class="font-bold">黑名单</h3><button @click="showBlacklist=false">✕</button></div><div class="space-y-2"><template x-for="b in blacklist" :key="b.email"><div class="flex justify-between bg-gray-50 p-2 rounded text-xs"><span x-text="b.email"></span><button @click="unban(b.email)" class="text-red-500">解封</button></div></template></div></div></div>
-            </div>
+            <div x-show="tab === 'users'" class="bg-white p-6 rounded shadow h-full overflow-y-auto"><div class="flex justify-between items-center mb-4"><div class="flex gap-2"><button @click="loadUsers" class="text-sm text-blue-500">刷新</button><button @click="showBlacklist=true; loadBlacklist()" class="text-xs bg-gray-800 text-white px-3 py-1 rounded">黑名单</button></div><div class="flex gap-2" x-show="selectedUsers.length>0"><button @click="batchAction('mute')" class="bg-yellow-100 text-xs px-2 rounded">禁言</button><button @click="batchAction('unmute')" class="bg-green-100 text-xs px-2 rounded">解禁</button><button @click="batchAction('delete')" class="bg-red-100 text-xs px-2 rounded">删除</button><button @click="batchAction('ban')" class="bg-black text-white text-xs px-2 rounded">永久拉黑</button></div></div><table class="w-full text-sm text-left"><thead class="bg-gray-50"><tr><th class="p-3"><input type="checkbox" @change="toggleAll($event)"></th><th>ID</th><th>用户</th><th>邮箱</th><th>状态</th><th>钥匙</th><th>操作</th></tr></thead><tbody><template x-for="u in users" :key="u.id"><tr class="border-b hover:bg-gray-50"><td class="p-3"><input type="checkbox" :value="u.id" x-model="selectedUsers"></td><td x-text="u.id"></td><td x-text="u.username"></td><td x-text="u.email"></td><td><span x-show="u.is_muted" class="text-red-500 font-bold">禁言</span><span x-show="!u.is_muted" class="text-green-500">正常</span></td><td x-text="(u.daily_limit||1)"></td><td><button @click="editQuota(u)" class="text-blue-600">设置</button></td></tr></template></tbody></table><div x-show="showBlacklist" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded w-96 max-h-[80vh] overflow-y-auto"><div class="flex justify-between mb-4"><h3 class="font-bold">黑名单</h3><button @click="showBlacklist=false">✕</button></div><div class="space-y-2"><template x-for="b in blacklist" :key="b.email"><div class="flex justify-between bg-gray-50 p-2 rounded text-xs"><span x-text="b.email"></span><button @click="unban(b.email)" class="text-red-500">解封</button></div></template></div></div></div></div>
 
             <!-- 6. 私信 -->
             <div x-show="tab === 'msgs'" class="bg-white rounded shadow h-full flex border"><div class="w-64 border-r flex flex-col bg-gray-50"><div class="p-3 border-b font-bold bg-white flex justify-between"><span>私信</span><button @click="loadInbox" class="text-xs text-blue-500">刷新</button></div><div class="flex-1 overflow-y-auto"><template x-for="u in inboxList" :key="u.id"><div @click="selectChat(u)" class="p-3 border-b cursor-pointer hover:bg-blue-100" :class="activeChatUser?.id===u.id?'bg-blue-200':''"><div class="font-bold text-xs" x-text="u.username"></div><div class="text-[10px] text-gray-500 truncate" x-text="u.last_msg"></div></div></template></div></div><div class="flex-1 flex flex-col bg-white"><div x-show="activeChatUser" class="flex-1 flex flex-col h-full relative"><div class="p-3 border-b bg-gray-50 font-bold" x-text="activeChatUser?.username"></div><div class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50" id="adminChatContainer"><template x-for="msg in currentChatMsgs" :key="msg.id"><div class="flex flex-col" :class="msg.sender==='admin'?'items-end':'items-start'"><div class="max-w-[80%] p-2 rounded text-xs" :class="msg.sender==='admin'?'bg-blue-600 text-white':'bg-white border'"><div x-text="msg.content"></div></div></div></template></div><div class="p-3 bg-white border-t flex gap-2"><input type="text" x-model="replyContent" @keyup.enter="sendReply" class="flex-1 border p-2 rounded text-sm outline-none"><button @click="sendReply" class="bg-blue-600 text-white px-4 rounded text-sm">发</button></div></div></div></div>
@@ -183,6 +96,9 @@
                 post: { id: null, title: '', category_id: 3, blocks: [], manualDate: '', tags: [] },
                 newCat: '', allTags: [], tagPosts: [], editingTag: null, keywords: [], newKw: {keyword:'', tagName:'', tagType:'艺人'},
                 inboxList: [], activeChatUser: null, currentChatMsgs: [], replyContent: '', selectedUsers: [], showBlacklist: false,
+                
+                // 分页
+                page: 1,
 
                 async init() { if(this.token) { this.loadCats(); this.loadResources(); } },
                 async login() { const res = await fetch('/api/auth/login', {method:'POST', body:JSON.stringify({...this.loginForm, isAdmin:true})}); const data = await res.json(); if(res.ok) { this.token = data.token; localStorage.setItem('adm_token', data.token); this.loadCats(); } else alert(data.error); },
@@ -192,52 +108,26 @@
                 switchTab(t) { 
                     this.tab = t; 
                     if(t==='post') this.resetPost(); 
-                    if(t==='list') this.loadResources();
+                    if(t==='list') { this.page = 1; this.loadResources(); }
                     if(t==='tags') this.loadAllTags();
                     if(t==='keywords') this.loadKeywords();
                     if(t==='users') this.loadUsers();
                     if(t==='msgs') this.loadInbox();
                 },
 
-                // 标签管理 (增强版)
-                async loadAllTags() { 
-                    const res = await fetch('/api/admin/tags/all', {headers:this.auth()}); 
-                    this.allTags = await res.json(); 
-                    // 不清空 editingTag 和 tagPosts，防止刷新 Tab 时丢失状态，
-                    // 除非主动点击了新标签
-                },
-                async loadTagPosts(t) { 
-                    // 深拷贝以解绑引用，防止修改输入框时直接影响列表显示（直到保存）
-                    this.editingTag = JSON.parse(JSON.stringify(t)); 
-                    const res = await fetch(`/api/admin/resources?tagId=${t.id}`, {headers:this.auth()}); 
-                    this.tagPosts = await res.json(); 
-                },
-                async updateTag() {
-                    if(!this.editingTag) return;
-                    if(!this.editingTag.name) return alert('标签名不能为空');
-                    const res = await fetch('/api/admin/tag/update', {
-                        method: 'POST', 
-                        headers: this.auth(), 
-                        body: JSON.stringify(this.editingTag)
-                    });
-                    if(res.ok) { 
-                        alert('更新成功'); 
-                        this.loadAllTags(); // 刷新列表
-                    } else alert((await res.json()).error);
-                },
-                async uploadTagImg(e) {
-                    const f = e.target.files[0]; if(!f) return; const fd = new FormData(); fd.append('file', f);
-                    try { 
-                        const res = await fetch('/api/admin/upload', {method:'POST', headers:this.auth(), body:fd}); 
-                        const d = await res.json(); 
-                        if(d.url) this.editingTag.image_url = d.url; 
-                    } catch(e){ alert('上传失败'); }
-                },
-
-                // 其他逻辑...
+                // 资源逻辑
                 async loadCats() { this.categories = (await (await fetch('/api/public/home')).json()).categories; },
-                async loadResources() { let url = `/api/admin/resources?q=${this.searchQ}`; if(this.filterCatId) url+=`&catId=${this.filterCatId}`; const res = await fetch(url, {headers:this.auth()}); this.resourceList = await res.json(); },
+                async loadResources() { 
+                    let url = `/api/admin/resources?page=${this.page}&q=${this.searchQ}`; 
+                    if(this.filterCatId) url+=`&catId=${this.filterCatId}`;
+                    const res = await fetch(url, {headers:this.auth()}); 
+                    this.resourceList = await res.json(); 
+                },
+                prevPage() { if(this.page>1){ this.page--; this.loadResources(); } },
+                nextPage() { this.page++; this.loadResources(); },
+
                 getCatName(id) { const c = this.categories.find(cat => cat.id == id); return c ? c.name : '未分类'; },
+                
                 async editResource(id) { const res = await fetch(`/api/admin/resource/${id}`, {headers:this.auth()}); const data = await res.json(); this.post={id:data.id, title:data.title, category_id:data.category_id, blocks:JSON.parse(data.content_json||'[]'), manualDate:data.custom_date, tags:data.tags||[]}; if(this.post.tags.length===0) this.post.tags.push({type:'番组',name:'',image_url:''}); this.isEdit=true; this.tab='post'; },
                 async publish() { 
                     const hasLink = this.post.blocks.some(b => b.type === 'link' && b.value && b.value.trim() !== ''); if (!hasLink) return alert('至少填写一条有效链接！');
@@ -257,9 +147,16 @@
                 async editQuota(u) { const l = prompt('钥匙数:', u.daily_limit||1); if(l) await fetch('/api/admin/user/quota', { method:'POST', headers:this.auth(), body:JSON.stringify({ userId:u.id, config:{limit:parseInt(l)} }) }); this.loadUsers(); },
                 async loadBlacklist() { const res = await fetch('/api/admin/blacklist', { headers:this.auth() }); if(res.ok) this.blacklist = await res.json(); },
                 async unban(email) { if(!confirm('解封?')) return; await fetch('/api/admin/blacklist/delete', { method:'POST', headers:this.auth(), body:JSON.stringify({email}) }); this.loadBlacklist(); },
+                
+                async loadAllTags() { const res = await fetch('/api/admin/tags/all', {headers:this.auth()}); this.allTags = await res.json(); this.tagPosts = []; this.editingTag = null; },
+                async loadTagPosts(t) { this.editingTag = JSON.parse(JSON.stringify(t)); const res = await fetch(`/api/admin/resources?tagId=${t.id}`, {headers:this.auth()}); this.tagPosts = await res.json(); },
+                async updateTag() { if(!this.editingTag) return; if(!this.editingTag.name) return alert('必填'); const res = await fetch('/api/admin/tag/update', {method:'POST', headers:this.auth(), body:JSON.stringify(this.editingTag)}); if(res.ok) { alert('成功'); this.loadAllTags(); } else alert((await res.json()).error); },
+                async uploadTagImg(e) { const f = e.target.files[0]; if(!f) return; const fd = new FormData(); fd.append('file', f); try { const res = await fetch('/api/admin/upload', {method:'POST', headers:this.auth(), body:fd}); const d = await res.json(); if(d.url) this.editingTag.image_url = d.url; } catch(e){ alert('失败'); } },
+
                 async loadInbox() { const res = await fetch('/api/admin/inbox', { headers:this.auth() }); if(res.ok) this.inboxList = await res.json(); },
                 async selectChat(u) { this.activeChatUser = u; const res = await fetch(`/api/admin/messages/${u.id}`, { headers:this.auth() }); if(res.ok) { this.currentChatMsgs = await res.json(); this.$nextTick(() => { const c = document.getElementById('adminChatContainer'); if(c) c.scrollTop = c.scrollHeight; }); } },
                 async sendReply() { if(!this.replyContent) return; const res = await fetch('/api/admin/message/reply', { method: 'POST', headers: this.auth(), body: JSON.stringify({ userId: this.activeChatUser.id, content: this.replyContent }) }); if(res.ok) { this.replyContent = ''; this.selectChat(this.activeChatUser); } },
+                
                 async delResource(id) { if(confirm('删?')) { await fetch('/api/admin/resource/delete', {method:'POST', headers:this.auth(), body:JSON.stringify({id})}); this.loadResources(); } },
                 async manageCat(a, id) { if(a==='add'&&!this.newCat) return; await fetch('/api/admin/category', {method:'POST', headers:this.auth(), body:JSON.stringify({action:a, name:this.newCat, id})}); this.newCat=''; this.loadCats(); }
             }
