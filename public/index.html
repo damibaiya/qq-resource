@@ -174,7 +174,7 @@
                 get isLocked() { if(!this.detailItem) return false; return this.detailItem.content.some(b => b.isLockedMask); },
 
                 async init() { 
-                    // PC端检测逻辑
+                    // PC端检测
                     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                     if (!isMobile) document.getElementById('pc-block-overlay').style.display = 'flex';
 
@@ -226,18 +226,70 @@
                 openModal(mode) { this.modalMode = mode; this.form = {loginId:'', email:'', username:'', password:'', confirmPassword:'', code:''}; this.showPwd=false; },
                 getCatName(id) { const c = this.categories.find(cat => cat.id == id); return c ? c.name : '未分类'; },
 
-                // 认证
-                async sendCode(type) { if(!this.form.email) return alert('邮箱必填'); const res = await fetch('/api/auth/send-code', {method:'POST', body:JSON.stringify({email:this.form.email, type})}); if(res.ok){ alert('发送成功'); this.timer=60; setInterval(()=>this.timer>0&&this.timer--,1000); } else alert((await res.json()).error); },
-                async doRegister() { if(this.form.password !== this.form.confirmPassword) return alert('两次密码不一致'); const res = await fetch('/api/auth/register', {method:'POST', body:JSON.stringify(this.form)}); const data = await res.json(); if(res.ok) this.loginSuccess(data); else alert(data.error); },
-                async doLogin() { const res = await fetch('/api/auth/login', {method:'POST', body:JSON.stringify({...this.form, isAdmin:false})}); const data = await res.json(); if(res.ok) this.loginSuccess(data); else alert(data.error); },
-                async doReset() { const res = await fetch('/api/auth/reset-password', {method:'POST', body:JSON.stringify(this.form)}); if(res.ok) { alert('重置成功'); this.modalMode='login'; } else alert((await res.json()).error); },
+                // === 认证相关 (修改了 showToast) ===
+                async sendCode(type) { 
+                    if(!this.form.email) return showToast('请输入邮箱', 'warn'); 
+                    const res = await fetch('/api/auth/send-code', {method:'POST', body:JSON.stringify({email:this.form.email, type})}); 
+                    if(res.ok){ 
+                        showToast('🚀 验证码已发送', 'success'); 
+                        this.timer=60; setInterval(()=>this.timer>0&&this.timer--,1000); 
+                    } else showToast((await res.json()).error, 'error'); 
+                },
+                async doRegister() { 
+                    if(this.form.password !== this.form.confirmPassword) return showToast('两次密码不一致', 'warn'); 
+                    const res = await fetch('/api/auth/register', {method:'POST', body:JSON.stringify(this.form)}); 
+                    const data = await res.json(); 
+                    if(res.ok) {
+                        showToast('🎉 注册成功！', 'success');
+                        this.loginSuccess(data); 
+                    } else showToast(data.error, 'error');
+                },
+                async doLogin() { 
+                    const res = await fetch('/api/auth/login', {method:'POST', body:JSON.stringify({...this.form, isAdmin:false})}); 
+                    const data = await res.json(); 
+                    if(res.ok) {
+                        showToast('👋 欢迎回来', 'success');
+                        this.loginSuccess(data); 
+                    } else showToast(data.error, 'error'); 
+                },
+                async doReset() { 
+                    const res = await fetch('/api/auth/reset-password', {method:'POST', body:JSON.stringify(this.form)}); 
+                    if(res.ok) { 
+                        showToast('✅ 密码重置成功，请登录', 'success'); 
+                        this.modalMode='login'; 
+                    } else showToast((await res.json()).error, 'error'); 
+                },
                 loginSuccess(data) { this.user=data.user; this.token=data.token; localStorage.setItem('user', JSON.stringify(data.user)); localStorage.setItem('token', data.token); this.modalMode=null; this.refreshUser(); },
                 logout() { localStorage.clear(); location.reload(); },
 
-                async unlockAll(resourceId) { if(!this.user) return this.modalMode = 'login'; if(!confirm('消耗 1 把钥匙解锁全部?')) return; const res = await fetch('/api/resource/unlock', { method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId}) }); const data = await res.json(); if(res.ok) { const fullContent = data.fullContent; this.detailItem.content = this.detailItem.content.map((b, idx) => { if(b.isLockedMask) return { ...b, value: fullContent[idx].value, isLockedMask: false }; return b; }); this.refreshUser(); } else alert(data.error); },
+                // === 功能逻辑 (修改了 showToast) ===
+                async unlockAll(resourceId) { 
+                    if(!this.user) { showToast('请先登录', 'warn'); return this.modalMode = 'login'; }
+                    if(!confirm('消耗 1 把钥匙解锁全部?')) return; 
+                    const res = await fetch('/api/resource/unlock', { method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId}) }); 
+                    const data = await res.json(); 
+                    if(res.ok) { 
+                        showToast('🔓 解锁成功！', 'success');
+                        const fullContent = data.fullContent; 
+                        this.detailItem.content = this.detailItem.content.map((b, idx) => { if(b.isLockedMask) return { ...b, value: fullContent[idx].value, isLockedMask: false }; return b; }); 
+                        this.refreshUser(); 
+                    } else showToast(data.error, 'error'); 
+                },
                 async openDetail(item) { this.detailItem = JSON.parse(JSON.stringify(item)); const res = await fetch(`/api/resource/comments/${item.id}`); this.comments = await res.json(); },
-                async postComment(rid) { if(!this.user) return this.modalMode = 'login'; if(!this.newComment) return; await fetch('/api/resource/comment', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid, content:this.newComment})}); this.newComment = ''; this.openDetail(this.detailItem); },
-                async like(rid) { if(!this.user) return this.modalMode = 'login'; await fetch('/api/resource/like', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid})}); this.detailItem.like_count++; },
+                async postComment(rid) { 
+                    if(!this.user) { showToast('请先登录', 'warn'); return this.modalMode = 'login'; }
+                    if(!this.newComment) return; 
+                    await fetch('/api/resource/comment', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid, content:this.newComment})}); 
+                    this.newComment = ''; 
+                    showToast('评论已发送', 'success');
+                    this.openDetail(this.detailItem); 
+                },
+                async like(rid) { 
+                    if(!this.user) { showToast('请先登录', 'warn'); return this.modalMode = 'login'; }
+                    await fetch('/api/resource/like', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid})}); 
+                    this.detailItem.like_count++; 
+                    showToast('❤️ 点赞成功', 'success');
+                },
             }
         }
     </script>
