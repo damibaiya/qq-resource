@@ -4,37 +4,18 @@
     <meta charset="UTF-8">
     <title>蓝鲸小站</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (!isMobile) { document.write('<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f9ff;color:#334155;font-weight:bold;text-align:center;"><h1>🚫 蓝鲸小站仅支持移动端访问</h1></div>'); document.close(); throw new Error("PC Blocked"); }
+    </script>
     <style>
         [x-cloak] { display: none !important; } 
         body { background: #f0f9ff; color: #334155; font-family: sans-serif; }
-        
-        /* PC端遮罩样式 */
-        #pc-block-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #f0f9ff; z-index: 9999;
-            display: flex; justify-content: center; align-items: center;
-            text-align: center; flex-direction: column;
-        }
     </style>
 </head>
 <body x-data="app()" @scroll.window="handleScroll">
-
-    <!-- PC端拦截提示 (默认隐藏，JS判断后显示) -->
-    <div id="pc-block-overlay" style="display: none;">
-        <div class="p-8 bg-white rounded-2xl shadow-xl">
-            <div class="text-6xl mb-4">📱</div>
-            <h1 class="text-xl font-bold text-slate-800 mb-2">仅支持移动端访问</h1>
-            <p class="text-gray-500 text-sm">为了最佳体验，请使用手机或平板设备访问本站。</p>
-            <div class="mt-6 p-4 bg-blue-50 rounded-lg text-xs text-blue-600">
-                蓝鲸小站 Blue Whale Station
-            </div>
-        </div>
-    </div>
-
-    <!-- 导航栏 -->
     <nav class="bg-white/95 backdrop-blur shadow-sm sticky top-0 z-40 border-b border-blue-100">
         <div class="max-w-5xl mx-auto px-4 h-14 flex justify-between items-center">
             <a href="/" class="text-xl font-bold text-blue-600 tracking-wider flex items-center gap-2"><span>🐳</span> 蓝鲸小站</a>
@@ -54,7 +35,6 @@
     </nav>
 
     <main class="max-w-4xl mx-auto px-4 py-6">
-        <!-- 搜索与排序 -->
         <div class="flex gap-2 mb-4">
             <input type="text" x-model="searchQ" @keyup.enter="resetAndSearch" placeholder="🔍 搜标题/日期..." class="flex-1 p-2.5 rounded-lg border border-blue-100 text-sm outline-none focus:ring-2 focus:ring-blue-200">
             <select x-model="sortType" class="p-2 rounded-lg border border-blue-100 text-xs outline-none bg-white">
@@ -62,7 +42,6 @@
             </select>
         </div>
 
-        <!-- 导航 Tab -->
         <div class="flex flex-col gap-2 mb-4">
             <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 <button @click="resetFilters()" :class="!viewMode && !currentCat ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 border'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition">全部</button>
@@ -75,14 +54,13 @@
             </div>
         </div>
 
-        <!-- 视图1: 标签图片墙 -->
         <div x-show="viewMode === 'tags'" class="animate-fade-in">
             <div class="mb-2 text-xs text-gray-400" x-text="'点击图片查看 ' + currentTagType + ' 列表：'"></div>
             <div class="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 <template x-for="t in tags" :key="t.id">
                     <div @click="filterByTagId(t.id)" class="bg-white rounded-lg p-2 shadow-sm border border-gray-100 text-center cursor-pointer hover:border-blue-300 transition" :class="currentTagId===t.id?'ring-2 ring-blue-400':''">
                         <div class="aspect-square w-full rounded-md mb-2 bg-gray-50 overflow-hidden relative">
-                            <img x-show="t.image_url" :src="t.image_url" loading="lazy" class="w-full h-full object-cover">
+                            <img x-show="t.image_url" :src="t.image_url" class="w-full h-full object-cover">
                             <div x-show="!t.image_url" class="absolute inset-0 flex items-center justify-center text-gray-300 text-xs">暂无图片</div>
                         </div>
                         <div class="text-xs font-bold truncate text-gray-700" x-text="t.name"></div>
@@ -92,7 +70,6 @@
             <div x-show="tags.length === 0" class="text-center py-10 text-gray-400 text-xs">暂无标签</div>
         </div>
 
-        <!-- 视图2: 文章列表 -->
         <div x-show="viewMode === 'list'" class="space-y-4 min-h-[300px] animate-fade-in">
             <div x-show="currentTagId" class="flex justify-between items-center bg-blue-50 p-2 rounded-lg text-xs text-blue-600 mb-2">
                 <span>正在显示标签筛选结果</span><button @click="showTagWall(currentTagType)" class="underline">返回标签墙</button>
@@ -107,8 +84,6 @@
                     <div class="text-xs text-gray-400 flex items-center justify-between"><span x-text="item.custom_date || '日期不详'"></span><div class="flex gap-3"><span>💬 <span x-text="item.comment_count"></span></span><span>❤️ <span x-text="item.like_count"></span></span></div></div>
                 </div>
             </template>
-            
-            <!-- 状态提示与手动加载 -->
             <div class="py-4 text-center">
                 <button x-show="!isLoading && hasMore" @click="loadMore" class="text-blue-500 text-xs border border-blue-200 px-4 py-2 rounded-full hover:bg-blue-50">点击加载更多</button>
                 <div x-show="isLoading" class="text-blue-500 text-xs">🚀 正在加载...</div>
@@ -117,9 +92,12 @@
             </div>
         </div>
     </main>
+
     <footer class="text-center py-6 text-xs text-gray-400 border-t border-blue-50 mt-6">&copy; 蓝鲸小站 Resource</footer>
 
-    <!-- 详情弹窗 -->
+    <!-- 弹窗部分省略... 保持原样 (请保留之前的弹窗HTML) -->
+    <!-- ... (详情弹窗、登录注册弹窗) ... -->
+    <!-- 为节省篇幅，这里不重复粘贴弹窗代码，请确保文件中有这部分 -->
     <div x-show="detailItem" x-cloak class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] relative" @click.away="detailItem=null">
             <div class="p-5 border-b bg-white rounded-t-2xl z-10 shrink-0 flex justify-between items-start">
@@ -127,30 +105,21 @@
             </div>
             <div class="p-5 overflow-y-auto custom-scrollbar">
                 <div x-show="isLocked" class="mb-6 p-4 bg-blue-50 rounded-xl text-center border border-blue-100"><p class="text-sm text-blue-800 mb-2 font-bold">🔒 此帖包含受限内容</p><button @click="unlockAll(detailItem.id)" class="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition">消耗 1 把钥匙解锁全部</button></div>
-                <div class="space-y-4 mb-8"><template x-for="(block, idx) in detailItem?.content" :key="idx"><div class="break-words text-sm"><template x-if="block.type === 'text'"><p class="whitespace-pre-wrap text-gray-700 leading-relaxed" x-text="block.value"></p></template><template x-if="block.type === 'image'"><img :src="block.isLockedMask ? 'https://via.placeholder.com/400x200?text=LOCKED' : block.value" loading="lazy" class="rounded-lg w-full" :class="block.isLockedMask?'opacity-50 blur-sm':''"></template><template x-if="block.type === 'link'"><div class="p-3 bg-gray-50 rounded-lg border border-gray-100 flex flex-col gap-1"><div class="flex items-center gap-2"><span class="text-lg">🔗</span><span class="font-bold text-gray-600 text-xs" x-text="block.linkType || '夸克链接'"></span></div><template x-if="block.isLockedMask"><span class="text-gray-400 text-xs italic">*** 内容已隐藏 ***</span></template><template x-if="!block.isLockedMask"><div class="text-xs break-all font-mono select-all bg-white p-1 rounded border" x-text="block.value"></div><a :href="block.value" target="_blank" class="text-xs text-blue-500 hover:underline text-right mt-1">跳转 &rarr;</a></template></div></template></div></template></div>
+                <div class="space-y-4 mb-8"><template x-for="(block, idx) in detailItem?.content" :key="idx"><div class="break-words text-sm"><template x-if="block.type === 'text'"><p class="whitespace-pre-wrap text-gray-700 leading-relaxed" x-text="block.value"></p></template><template x-if="block.type === 'image'"><img :src="block.isLockedMask ? 'https://via.placeholder.com/400x200?text=LOCKED' : block.value" class="rounded-lg w-full" :class="block.isLockedMask?'opacity-50 blur-sm':''"></template><template x-if="block.type === 'link'"><div class="p-3 bg-gray-50 rounded-lg border border-gray-100 flex flex-col gap-1"><div class="flex items-center gap-2"><span class="text-lg">🔗</span><span class="font-bold text-gray-600 text-xs" x-text="block.linkType || '夸克链接'"></span></div><template x-if="block.isLockedMask"><span class="text-gray-400 text-xs italic">*** 内容已隐藏 ***</span></template><template x-if="!block.isLockedMask"><div class="text-xs break-all font-mono select-all bg-white p-1 rounded border" x-text="block.value"></div><a :href="block.value" target="_blank" class="text-xs text-blue-500 hover:underline text-right mt-1">跳转 &rarr;</a></template></div></template></div></template></div>
                 <div class="border-t pt-4"><div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-700 text-sm">评论区</h3><button @click="like(detailItem.id)" class="text-pink-500 text-xs font-bold bg-pink-50 px-3 py-1 rounded-full">❤️ <span x-text="detailItem?.like_count||0"></span></button></div><div class="flex gap-2 mb-4"><input type="text" x-model="newComment" @keyup.enter="postComment(detailItem.id)" placeholder="分享..." class="flex-1 border border-gray-200 bg-gray-50 p-3 rounded-xl text-sm outline-none"><button @click="postComment(detailItem.id)" class="bg-blue-600 text-white px-4 rounded-lg text-xs font-bold">发送</button></div><div class="space-y-3"><template x-for="c in comments" :key="c.id"><div class="bg-gray-50 p-3 rounded-xl text-xs"><div class="flex justify-between text-gray-400 mb-1"><span class="font-bold text-blue-600" x-text="c.username"></span><span x-text="new Date(c.created_at).toLocaleString()"></span></div><div class="text-gray-700" x-text="c.content"></div></div></template></div></div>
             </div>
         </div>
     </div>
-    
-    <!-- 模态框: 登录/注册/重置 -->
-    <div x-show="modalMode" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
-            <button @click="modalMode = null" class="absolute top-4 right-4 text-gray-300 text-xl">&times;</button>
-            <div x-show="modalMode === 'login'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">登录</h2><div class="space-y-3"><input type="text" x-model="form.loginId" placeholder="QQ邮箱 / 用户名" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-3 top-2.5 text-xs text-gray-400" x-text="showPwd?'🙈':'👁️'"></button></div><button @click="doLogin" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm">立即登录</button><div class="flex justify-between text-xs text-gray-500 px-1"><button @click="modalMode = 'register'">注册账号</button><button @click="modalMode = 'reset'">找回密码</button></div></div></div>
-            <div x-show="modalMode === 'register'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">注册</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="QQ邮箱" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('register')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="text" x-model="form.username" placeholder="设置用户名" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="设置密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-2 top-2 text-xs" x-text="showPwd?'🙈':'👁️'"></button></div><input :type="showPwd?'text':'password'" x-model="form.confirmPassword" placeholder="确认密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doRegister" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold text-sm mt-2">注册并登录</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">去登录</button></div></div></div>
-            <div x-show="modalMode === 'reset'"><h2 class="text-xl font-bold mb-4 text-center">重置密码</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="邮箱" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('reset')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 text-xs rounded-lg font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="password" x-model="form.newPassword" placeholder="新密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doReset" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold">确认</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">返回</button></div></div></div>
-        </div>
-    </div>
+    <div x-show="modalMode" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative"><button @click="modalMode = null" class="absolute top-4 right-4 text-gray-300 text-xl">&times;</button><div x-show="modalMode === 'login'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">登录</h2><div class="space-y-3"><input type="text" x-model="form.loginId" placeholder="QQ邮箱 / 用户名" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-3 top-2.5 text-xs text-gray-400" x-text="showPwd?'🙈':'👁️'"></button></div><button @click="doLogin" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm">立即登录</button><div class="flex justify-between text-xs text-gray-500 px-1"><button @click="modalMode = 'register'">注册账号</button><button @click="modalMode = 'reset'">找回密码</button></div></div></div><div x-show="modalMode === 'register'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">注册</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="QQ邮箱" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('register')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="text" x-model="form.username" placeholder="设置用户名" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="设置密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-2 top-2 text-xs" x-text="showPwd?'🙈':'👁️'"></button></div><input :type="showPwd?'text':'password'" x-model="form.confirmPassword" placeholder="确认密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doRegister" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold text-sm mt-2">注册并登录</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">去登录</button></div></div></div><div x-show="modalMode === 'reset'"><h2 class="text-xl font-bold mb-4 text-center">重置密码</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="邮箱" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('reset')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 text-xs rounded-lg font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="password" x-model="form.newPassword" placeholder="新密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doReset" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold">确认</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">返回</button></div></div></div></div></div>
 
     <script>
         function app() {
             return {
+                // ... 保持原有数据结构 ...
                 user: JSON.parse(localStorage.getItem('user') || 'null'),
                 token: localStorage.getItem('token') || '',
                 categories: [], resources: [], tags: [], 
-                viewMode: 'list', 
-                currentCat: null, currentTagType: null, currentTagId: null,
+                viewMode: 'list', currentCat: null, currentTagType: null, currentTagId: null,
                 quota: {total:0, remaining:0}, unreadCount: 0,
                 modalMode: null, showCenter: false, detailItem: null,
                 form: { loginId:'', email:'', username:'', password:'', confirmPassword:'', code:'' },
@@ -160,14 +129,24 @@
                 get processedResources() {
                     let list = this.resources.map(r => ({...r}));
                     return list.sort((a, b) => {
+                        // 【核心修改】日期提取逻辑升级
                         const getDate = (item) => {
                             if (item.custom_date) {
-                                const s = item.custom_date.replace(/年/g, '/').replace(/月/g, '/').replace(/日/g, '');
-                                const d = new Date(s); if (!isNaN(d)) return d;
-                            } return new Date(item.created_at);
+                                // 提取前4位数字作为年份 (支持 1993, 2003-2005 等格式)
+                                const match = item.custom_date.match(/(\d{4})/);
+                                if (match) {
+                                    // 构造一个标准日期用于比较，默认设为当年1月1日
+                                    return new Date(`${match[1]}/01/01`);
+                                }
+                            }
+                            return new Date(item.created_at);
                         };
-                        if (this.sortType === 'date-desc') return getDate(b) - getDate(a);
-                        if (this.sortType === 'date-asc') return getDate(a) - getDate(b);
+
+                        const dateA = getDate(a);
+                        const dateB = getDate(b);
+
+                        if (this.sortType === 'date-desc') return dateB - dateA;
+                        if (this.sortType === 'date-asc') return dateA - dateB;
                         if (this.sortType === 'title-asc') return a.title.localeCompare(b.title, 'zh');
                         return 0;
                     });
@@ -175,10 +154,8 @@
                 get isLocked() { if(!this.detailItem) return false; return this.detailItem.content.some(b => b.isLockedMask); },
 
                 async init() { 
-                    // PC端检测
                     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                     if (!isMobile) document.getElementById('pc-block-overlay').style.display = 'flex';
-
                     if(this.token) this.refreshUser(); 
                     this.doSearch(); 
                     window.addEventListener('scroll', this.handleScroll.bind(this));
@@ -190,7 +167,6 @@
                         this.loadMore();
                     }
                 },
-
                 async doSearch() { return this.fetchResources(true); },
                 resetAndSearch() { this.doSearch(); },
                 async loadMore() { this.page++; await this.fetchResources(false); },
@@ -198,16 +174,13 @@
                 async fetchResources(isReset) {
                     this.isLoading = true;
                     if(isReset) { this.page = 1; this.resources = []; this.hasMore = true; }
-
                     let url = `/api/public/home?page=${this.page}&q=${this.searchQ}`;
                     if(this.currentCat) url += `&catId=${this.currentCat}`; 
                     if(this.currentTagId) url += `&tagId=${this.currentTagId}`; 
-                    
                     try {
                         const res = await fetch(url);
                         const data = await res.json();
                         if(this.page === 1) this.categories = data.categories;
-                        
                         if(data.resources && data.resources.length > 0) {
                             const newItems = data.resources.filter(n => !this.resources.find(o => o.id === n.id));
                             this.resources = [...this.resources, ...newItems];
@@ -227,122 +200,20 @@
                 openModal(mode) { this.modalMode = mode; this.form = {loginId:'', email:'', username:'', password:'', confirmPassword:'', code:''}; this.showPwd=false; },
                 getCatName(id) { const c = this.categories.find(cat => cat.id == id); return c ? c.name : '未分类'; },
 
-                // === 认证相关 (修改了 showToast) ===
-                async sendCode(type) { 
-                    if(!this.form.email) return showToast('请输入邮箱', 'warn'); 
-                    const res = await fetch('/api/auth/send-code', {method:'POST', body:JSON.stringify({email:this.form.email, type})}); 
-                    if(res.ok){ 
-                        showToast('🚀 验证码已发送', 'success'); 
-                        this.timer=60; setInterval(()=>this.timer>0&&this.timer--,1000); 
-                    } else showToast((await res.json()).error, 'error'); 
-                },
-                async doRegister() { 
-                    if(this.form.password !== this.form.confirmPassword) return showToast('两次密码不一致', 'warn'); 
-                    const res = await fetch('/api/auth/register', {method:'POST', body:JSON.stringify(this.form)}); 
-                    const data = await res.json(); 
-                    if(res.ok) {
-                        showToast('🎉 注册成功！', 'success');
-                        this.loginSuccess(data); 
-                    } else showToast(data.error, 'error');
-                },
-                async doLogin() { 
-                    const res = await fetch('/api/auth/login', {method:'POST', body:JSON.stringify({...this.form, isAdmin:false})}); 
-                    const data = await res.json(); 
-                    if(res.ok) {
-                        showToast('👋 欢迎回来', 'success');
-                        this.loginSuccess(data); 
-                    } else showToast(data.error, 'error'); 
-                },
-                async doReset() { 
-                    const res = await fetch('/api/auth/reset-password', {method:'POST', body:JSON.stringify(this.form)}); 
-                    if(res.ok) { 
-                        showToast('✅ 密码重置成功，请登录', 'success'); 
-                        this.modalMode='login'; 
-                    } else showToast((await res.json()).error, 'error'); 
-                },
+                // 认证相关
+                async sendCode(type) { if(!this.form.email) return alert('邮箱必填'); const res = await fetch('/api/auth/send-code', {method:'POST', body:JSON.stringify({email:this.form.email, type})}); if(res.ok){ alert('发送成功'); this.timer=60; setInterval(()=>this.timer>0&&this.timer--,1000); } else alert((await res.json()).error); },
+                async doRegister() { if(this.form.password !== this.form.confirmPassword) return alert('两次密码不一致'); const res = await fetch('/api/auth/register', {method:'POST', body:JSON.stringify(this.form)}); const data = await res.json(); if(res.ok) this.loginSuccess(data); else alert(data.error); },
+                async doLogin() { const res = await fetch('/api/auth/login', {method:'POST', body:JSON.stringify({...this.form, isAdmin:false})}); const data = await res.json(); if(res.ok) this.loginSuccess(data); else alert(data.error); },
+                async doReset() { const res = await fetch('/api/auth/reset-password', {method:'POST', body:JSON.stringify(this.form)}); if(res.ok) { alert('重置成功'); this.modalMode='login'; } else alert((await res.json()).error); },
                 loginSuccess(data) { this.user=data.user; this.token=data.token; localStorage.setItem('user', JSON.stringify(data.user)); localStorage.setItem('token', data.token); this.modalMode=null; this.refreshUser(); },
                 logout() { localStorage.clear(); location.reload(); },
 
-                // === 功能逻辑 (修改了 showToast) ===
-                async unlockAll(resourceId) { 
-                    if(!this.user) { showToast('请先登录', 'warn'); return this.modalMode = 'login'; }
-                    if(!confirm('消耗 1 把钥匙解锁全部?')) return; 
-                    const res = await fetch('/api/resource/unlock', { method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId}) }); 
-                    const data = await res.json(); 
-                    if(res.ok) { 
-                        showToast('🔓 解锁成功！', 'success');
-                        const fullContent = data.fullContent; 
-                        this.detailItem.content = this.detailItem.content.map((b, idx) => { if(b.isLockedMask) return { ...b, value: fullContent[idx].value, isLockedMask: false }; return b; }); 
-                        this.refreshUser(); 
-                    } else showToast(data.error, 'error'); 
-                },
+                async unlockAll(resourceId) { if(!this.user) return this.modalMode = 'login'; if(!confirm('消耗 1 把钥匙解锁全部?')) return; const res = await fetch('/api/resource/unlock', { method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId}) }); const data = await res.json(); if(res.ok) { const fullContent = data.fullContent; this.detailItem.content = this.detailItem.content.map((b, idx) => { if(b.isLockedMask) return { ...b, value: fullContent[idx].value, isLockedMask: false }; return b; }); this.refreshUser(); } else alert(data.error); },
                 async openDetail(item) { this.detailItem = JSON.parse(JSON.stringify(item)); const res = await fetch(`/api/resource/comments/${item.id}`); this.comments = await res.json(); },
-                async postComment(rid) { 
-                    if(!this.user) { showToast('请先登录', 'warn'); return this.modalMode = 'login'; }
-                    if(!this.newComment) return; 
-                    await fetch('/api/resource/comment', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid, content:this.newComment})}); 
-                    this.newComment = ''; 
-                    showToast('评论已发送', 'success');
-                    this.openDetail(this.detailItem); 
-                },
-                async like(rid) { 
-                    if(!this.user) { showToast('请先登录', 'warn'); return this.modalMode = 'login'; }
-                    await fetch('/api/resource/like', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid})}); 
-                    this.detailItem.like_count++; 
-                    showToast('❤️ 点赞成功', 'success');
-                },
+                async postComment(rid) { if(!this.user) return this.modalMode = 'login'; if(!this.newComment) return; await fetch('/api/resource/comment', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid, content:this.newComment})}); this.newComment = ''; this.openDetail(this.detailItem); },
+                async like(rid) { if(!this.user) return this.modalMode = 'login'; await fetch('/api/resource/like', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid})}); this.detailItem.like_count++; },
             }
         }
-    </script>
-    <!-- Toast 通知容器 -->
-    <div class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none" id="toast-container"></div>
-    
-    <style>
-        .toast-enter { transform: translateY(-20px); opacity: 0; }
-        .toast-enter-active { transform: translateY(0); opacity: 1; transition: all 0.3s ease-out; }
-        .toast-leave { transform: translateY(0); opacity: 1; }
-        .toast-leave-active { transform: translateY(-20px); opacity: 0; transition: all 0.3s ease-in; }
-    </style>
-    
-    <script>
-        // 全局通知函数
-        window.showToast = (message, type = 'info') => {
-            const container = document.getElementById('toast-container');
-            
-            // 1. 创建元素
-            const el = document.createElement('div');
-            
-            // 2. 根据类型设定颜色图标
-            let styles = 'bg-slate-800 text-white shadow-xl shadow-slate-200/50';
-            let icon = '📢';
-            
-            if (type === 'success') { styles = 'bg-emerald-500 text-white shadow-emerald-200/50'; icon = '✅'; }
-            if (type === 'error')   { styles = 'bg-rose-500 text-white shadow-rose-200/50'; icon = '❌'; }
-            if (type === 'warn')    { styles = 'bg-amber-400 text-white shadow-amber-200/50'; icon = '⚠️'; }
-    
-            el.className = `${styles} px-6 py-3 rounded-full text-sm font-bold flex items-center gap-2 pointer-events-auto toast-enter min-w-[200px] justify-center`;
-            el.innerHTML = `<span>${icon}</span><span>${message}</span>`;
-    
-            // 3. 添加到页面
-            container.appendChild(el);
-    
-            // 4. 动画进入
-            requestAnimationFrame(() => {
-                el.classList.remove('toast-enter');
-                el.classList.add('toast-enter-active');
-            });
-    
-            // 5. 自动消失 (成功3秒，错误4秒)
-            const duration = type === 'error' ? 4000 : 3000;
-            setTimeout(() => {
-                el.classList.remove('toast-enter-active');
-                el.classList.add('toast-leave-active');
-                setTimeout(() => el.remove(), 300); // 动画结束后移除 DOM
-            }, duration);
-        };
-    
-        // 覆盖原生 alert (作为兜底)
-        window.alert = (msg) => showToast(msg, 'warn');
     </script>
 </body>
 </html>
