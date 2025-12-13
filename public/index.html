@@ -96,9 +96,7 @@
 
     <footer class="text-center py-6 text-xs text-gray-400 border-t border-blue-50 mt-6">&copy; 蓝鲸小站 Resource</footer>
 
-    <!-- 弹窗部分省略... 保持原样 (请保留之前的弹窗HTML) -->
-    <!-- ... (详情弹窗、登录注册弹窗) ... -->
-    <!-- 为节省篇幅，这里不重复粘贴弹窗代码，请确保文件中有这部分 -->
+    <!-- 弹窗部分省略，保持之前一致 -->
     <div x-show="detailItem" x-cloak class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] relative" @click.away="detailItem=null">
             <div class="p-5 border-b bg-white rounded-t-2xl z-10 shrink-0 flex justify-between items-start">
@@ -111,16 +109,16 @@
             </div>
         </div>
     </div>
-    <div x-show="modalMode" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative"><button @click="modalMode = null" class="absolute top-4 right-4 text-gray-300 text-xl">&times;</button><div x-show="modalMode === 'login'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">登录</h2><div class="space-y-3"><input type="text" x-model="form.loginId" placeholder="QQ邮箱 / 用户名" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-3 top-2.5 text-xs text-gray-400" x-text="showPwd?'🙈':'👁️'"></button></div><button @click="doLogin" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm">立即登录</button><div class="flex justify-between text-xs text-gray-500 px-1"><button @click="modalMode = 'register'">注册账号</button><button @click="modalMode = 'reset'">找回密码</button></div></div></div><div x-show="modalMode === 'register'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">注册</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="QQ邮箱" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('register')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="text" x-model="form.username" placeholder="设置用户名" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="设置密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-2 top-2 text-xs" x-text="showPwd?'🙈':'👁️'"></button></div><input :type="showPwd?'text':'password'" x-model="form.confirmPassword" placeholder="确认密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doRegister" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold text-sm mt-2">注册并登录</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">去登录</button></div></div></div><div x-show="modalMode === 'reset'"><h2 class="text-xl font-bold mb-4 text-center">重置密码</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="邮箱" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('reset')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 text-xs rounded-lg font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="password" x-model="form.newPassword" placeholder="新密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doReset" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold">确认</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">返回</button></div></div></div></div></div>
+    <div x-show="modalMode" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative"><button @click="modalMode = null" class="absolute top-4 right-4 text-gray-300 text-xl">&times;</button><div x-show="modalMode === 'login'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">登录</h2><div class="space-y-3"><input type="text" x-model="form.loginId" placeholder="QQ邮箱 / 用户名" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-3 top-2.5 text-xs text-gray-400" x-text="showPwd?'🙈':'👁️'"></button></div><button @click="doLogin" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm">立即登录</button><div class="flex justify-between text-xs text-gray-500 px-1"><button @click="modalMode = 'register'">注册账号</button><button @click="modalMode = 'reset'">找回密码</button></div></div></div><div x-show="modalMode === 'register'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">注册</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="QQ邮箱" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('register')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="text" x-model="form.username" placeholder="设置用户名" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="设置密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-2 top-2 text-xs" x-text="showPwd?'🙈':'👁️'"></button></div><input :type="showPwd?'text':'password'" x-model="form.confirmPassword" placeholder="确认密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doRegister" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold text-sm mt-2">注册并登录</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">去登录</button></div></div></div><div x-show="modalMode === 'reset'"><h2 class="text-xl font-bold mb-4 text-center">重置密码</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="邮箱" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('reset')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 text-xs rounded-lg font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="password" x-model="form.newPassword" placeholder="新密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doReset" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold">确认</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">返回</button></div></div></div></div>
 
     <script>
         function app() {
             return {
-                // ... 保持原有数据结构 ...
                 user: JSON.parse(localStorage.getItem('user') || 'null'),
                 token: localStorage.getItem('token') || '',
                 categories: [], resources: [], tags: [], 
-                viewMode: 'list', currentCat: null, currentTagType: null, currentTagId: null,
+                viewMode: 'list', 
+                currentCat: null, currentTagType: null, currentTagId: null,
                 quota: {total:0, remaining:0}, unreadCount: 0,
                 modalMode: null, showCenter: false, detailItem: null,
                 form: { loginId:'', email:'', username:'', password:'', confirmPassword:'', code:'' },
@@ -130,21 +128,32 @@
                 get processedResources() {
                     let list = this.resources.map(r => ({...r}));
                     return list.sort((a, b) => {
-                        // 【核心修改】日期提取逻辑升级
-                        const getDate = (item) => {
-                            if (item.custom_date) {
-                                // 提取前4位数字作为年份 (支持 1993, 2003-2005 等格式)
-                                const match = item.custom_date.match(/(\d{4})/);
-                                if (match) {
-                                    // 构造一个标准日期用于比较，默认设为当年1月1日
-                                    return new Date(`${match[1]}/01/01`);
+                        // 【核心修改】精准中文日期解析
+                        const parseCN = (str) => {
+                            if (!str) return 0;
+                            let y = 0, m = 1, d = 1;
+                            
+                            // 匹配 2025年12月8日, 2025.12.8, 20251208
+                            const full = str.match(/(\d{4})[^\d](\d{1,2})[^\d](\d{1,2})/);
+                            if (full) {
+                                y = parseInt(full[1]); m = parseInt(full[2]); d = parseInt(full[3]);
+                            } else {
+                                // 匹配 2025年12月, 2025.12
+                                const ym = str.match(/(\d{4})[^\d](\d{1,2})/);
+                                if (ym) {
+                                    y = parseInt(ym[1]); m = parseInt(ym[2]);
+                                } else {
+                                    // 匹配 2025年, 2025 (或 2003-2005)
+                                    const yOnly = str.match(/(\d{4})/);
+                                    if (yOnly) y = parseInt(yOnly[1]);
                                 }
                             }
-                            return new Date(item.created_at);
+                            if (y === 0) return 0;
+                            return new Date(y, m - 1, d).getTime();
                         };
 
-                        const dateA = getDate(a);
-                        const dateB = getDate(b);
+                        const dateA = a.custom_date ? parseCN(a.custom_date) : new Date(a.created_at).getTime();
+                        const dateB = b.custom_date ? parseCN(b.custom_date) : new Date(b.created_at).getTime();
 
                         if (this.sortType === 'date-desc') return dateB - dateA;
                         if (this.sortType === 'date-asc') return dateA - dateB;
@@ -152,6 +161,7 @@
                         return 0;
                     });
                 },
+                // ... 其他函数保持不变 ...
                 get isLocked() { if(!this.detailItem) return false; return this.detailItem.content.some(b => b.isLockedMask); },
 
                 async init() { 
@@ -161,7 +171,6 @@
                     this.doSearch(); 
                     window.addEventListener('scroll', this.handleScroll.bind(this));
                 },
-
                 handleScroll() {
                     const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
                     if (scrollTop + clientHeight >= scrollHeight - 100 && !this.isLoading && this.hasMore) {
@@ -171,7 +180,6 @@
                 async doSearch() { return this.fetchResources(true); },
                 resetAndSearch() { this.doSearch(); },
                 async loadMore() { this.page++; await this.fetchResources(false); },
-
                 async fetchResources(isReset) {
                     this.isLoading = true;
                     if(isReset) { this.page = 1; this.resources = []; this.hasMore = true; }
@@ -190,25 +198,20 @@
                     } catch(e) { console.error(e); }
                     this.isLoading = false;
                 },
-
                 resetFilters() { this.currentCat = null; this.currentTagType = null; this.currentTagId = null; this.viewMode = 'list'; this.doSearch(); },
                 filterCat(id) { this.currentCat = id; this.currentTagType = null; this.currentTagId = null; this.viewMode = 'list'; this.doSearch(); },
                 async showTagWall(type) { this.currentTagType = type; this.currentCat = null; this.currentTagId = null; this.viewMode = 'tags'; const res = await fetch(`/api/public/tags?type=${type}`); this.tags = await res.json(); },
                 filterByTagId(id) { this.currentTagId = id; this.viewMode = 'list'; this.doSearch(); },
-
                 async refreshUser() { const res = await fetch('/api/user/info', { headers: {'Authorization': `Bearer ${this.token}`} }); if(res.ok) { const data = await res.json(); this.user = data.user; this.quota = data.quota; this.unreadCount = data.unread_count||0; localStorage.setItem('user', JSON.stringify(data.user)); } else this.logout(); },
                 showUserCenter() { location.href = '/user'; },
                 openModal(mode) { this.modalMode = mode; this.form = {loginId:'', email:'', username:'', password:'', confirmPassword:'', code:''}; this.showPwd=false; },
                 getCatName(id) { const c = this.categories.find(cat => cat.id == id); return c ? c.name : '未分类'; },
-
-                // 认证相关
                 async sendCode(type) { if(!this.form.email) return alert('邮箱必填'); const res = await fetch('/api/auth/send-code', {method:'POST', body:JSON.stringify({email:this.form.email, type})}); if(res.ok){ alert('发送成功'); this.timer=60; setInterval(()=>this.timer>0&&this.timer--,1000); } else alert((await res.json()).error); },
                 async doRegister() { if(this.form.password !== this.form.confirmPassword) return alert('两次密码不一致'); const res = await fetch('/api/auth/register', {method:'POST', body:JSON.stringify(this.form)}); const data = await res.json(); if(res.ok) this.loginSuccess(data); else alert(data.error); },
                 async doLogin() { const res = await fetch('/api/auth/login', {method:'POST', body:JSON.stringify({...this.form, isAdmin:false})}); const data = await res.json(); if(res.ok) this.loginSuccess(data); else alert(data.error); },
                 async doReset() { const res = await fetch('/api/auth/reset-password', {method:'POST', body:JSON.stringify(this.form)}); if(res.ok) { alert('重置成功'); this.modalMode='login'; } else alert((await res.json()).error); },
                 loginSuccess(data) { this.user=data.user; this.token=data.token; localStorage.setItem('user', JSON.stringify(data.user)); localStorage.setItem('token', data.token); this.modalMode=null; this.refreshUser(); },
                 logout() { localStorage.clear(); location.reload(); },
-
                 async unlockAll(resourceId) { if(!this.user) return this.modalMode = 'login'; if(!confirm('消耗 1 把钥匙解锁全部?')) return; const res = await fetch('/api/resource/unlock', { method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId}) }); const data = await res.json(); if(res.ok) { const fullContent = data.fullContent; this.detailItem.content = this.detailItem.content.map((b, idx) => { if(b.isLockedMask) return { ...b, value: fullContent[idx].value, isLockedMask: false }; return b; }); this.refreshUser(); } else alert(data.error); },
                 async openDetail(item) { this.detailItem = JSON.parse(JSON.stringify(item)); const res = await fetch(`/api/resource/comments/${item.id}`); this.comments = await res.json(); },
                 async postComment(rid) { if(!this.user) return this.modalMode = 'login'; if(!this.newComment) return; await fetch('/api/resource/comment', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid, content:this.newComment})}); this.newComment = ''; this.openDetail(this.detailItem); },
