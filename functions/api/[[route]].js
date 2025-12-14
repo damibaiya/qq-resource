@@ -212,7 +212,30 @@ app.post('/admin/users/batch', async (c) => { const t=c.req.header('Authorizatio
 app.get('/admin/blacklist', async (c) => { const t=c.req.header('Authorization')?.split(' ')[1]; const u=await verifyToken(t,c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403); const r=await c.env.DB.prepare('SELECT * FROM blacklist ORDER BY created_at DESC').all(); return c.json(r.results); });
 app.post('/admin/blacklist/delete', async (c) => { const t=c.req.header('Authorization')?.split(' ')[1]; const u=await verifyToken(t,c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403); await c.env.DB.prepare('DELETE FROM blacklist WHERE email=?').bind((await c.req.json()).email).run(); return c.json({success:true}); });
 app.get('/admin/users', async (c) => { const t=c.req.header('Authorization')?.split(' ')[1]; const u=await verifyToken(t,c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403); const r=await c.env.DB.prepare('SELECT id,username,email,daily_limit,temp_quota_config,is_muted,consecutive_days,created_at FROM users WHERE role!="admin" ORDER BY id DESC').all(); return c.json(r.results); });
-app.post('/admin/user/quota', async (c) => { const t=c.req.header('Authorization')?.split(' ')[1]; const u=await verifyToken(t,c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403); const {userId,config}=await c.req.json(); await c.env.DB.prepare('UPDATE users SET temp_quota_config=? WHERE id=?').bind(config?JSON.stringify(config):null,userId).run(); return c.json({success:true}); });
+app.post('/admin/user/quota', async (c) => {
+  const t = c.req.header('Authorization')?.split(' ')[1]; 
+  const u = await verifyToken(t, c.env.JWT_SECRET); 
+  if(!u || u.role !== 'admin') return c.json({error:'无权操作'}, 403);
+  
+  const { userId, config } = await c.req.json();
+  const limit = parseInt(config.limit); // 前端传过来的是 { config: { limit: xx } }
+
+  // 核心修复逻辑：
+  // 1. 直接修改 daily_limit
+  // 2. 将 last_calc_date 设置为今天，防止用户下次访问时触发 syncUserQuota 导致数值被“连续签到算法”覆盖
+  // 3. 将 consecutive_days 根据 limit 重置为一个合理值 (例如给了3把，就假装他连续签到了10天)，或者保持不变
+  
+  const today = new Date().toISOString().split('T')[0];
+  
+  await c.env.DB.prepare(`
+    UPDATE users 
+    SET daily_limit = ?, 
+        last_calc_date = ? 
+    WHERE id = ?
+  `).bind(limit, today, userId).run();
+
+  return c.json({ success: true });
+});
 app.get('/admin/dashboard', async (c) => { const t=c.req.header('Authorization')?.split(' ')[1]; const u=await verifyToken(t,c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403); const [logs,userC,postC,msgC,unlockC]=await Promise.all([c.env.DB.prepare('SELECT * FROM admin_logs ORDER BY id DESC LIMIT 10').all(),c.env.DB.prepare('SELECT COUNT(*) as c FROM users').first(),c.env.DB.prepare('SELECT COUNT(*) as c FROM resources').first(),c.env.DB.prepare('SELECT COUNT(*) as c FROM messages').first(),c.env.DB.prepare('SELECT COUNT(*) as c FROM unlocked_items WHERE date_str = ?').bind(new Date().toISOString().split('T')[0]).first()]); c.header('Cache-Control','private, max-age=30'); return c.json({logs:logs.results,stats:{userCount:userC.c,postCount:postC.c,msgCount:msgC.c,todayUnlock:unlockC.c}}); });
 app.get('/admin/inbox', async (c) => { const t=c.req.header('Authorization')?.split(' ')[1]; const u=await verifyToken(t,c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403); const r=await c.env.DB.prepare(`SELECT DISTINCT u.id,u.username,u.email,(SELECT content FROM messages WHERE user_id=u.id ORDER BY id DESC LIMIT 1) as last_msg,(SELECT created_at FROM messages WHERE user_id=u.id ORDER BY id DESC LIMIT 1) as last_time,(SELECT COUNT(*) FROM messages WHERE user_id=u.id AND sender='user' AND is_read=0) as unread FROM users u WHERE u.id IN (SELECT DISTINCT user_id FROM messages) ORDER BY last_time DESC`).all(); return c.json(r.results); });
 app.get('/admin/messages/:id', async (c) => { const t=c.req.header('Authorization')?.split(' ')[1]; const u=await verifyToken(t,c.env.JWT_SECRET); if(!u||u.role!=='admin') return c.json({error:'无权'},403); const r=await c.env.DB.prepare('SELECT * FROM messages WHERE user_id=? ORDER BY id ASC').bind(c.req.param('id')).all(); await c.env.DB.prepare('UPDATE messages SET is_read=1 WHERE user_id=? AND sender="user" AND is_read=0').bind(c.req.param('id')).run(); return c.json(r.results); });
