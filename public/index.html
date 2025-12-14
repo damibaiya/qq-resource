@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <title>蓝鲸小站</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <!-- 引入最新版 Alpine.js -->
+    <script src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
     <script>
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (!isMobile) { 
-            // 避免 document.write 造成的潜在渲染阻塞，改用 CSS 控制显示
+            // 避免阻塞渲染，使用 CSS 类控制
             document.documentElement.classList.add('is-pc');
         }
     </script>
@@ -20,7 +20,7 @@
         
         /* PC 端拦截遮罩 */
         #pc-block { display: none; }
-        .is-pc body > * { display: none; }
+        .is-pc body > nav, .is-pc body > main, .is-pc body > footer { display: none; }
         .is-pc #pc-block { 
             display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: #f0f9ff; z-index: 9999; justify-content: center; align-items: center; 
@@ -48,9 +48,11 @@
         <div class="max-w-5xl mx-auto px-4 h-14 flex justify-between items-center">
             <a href="/" class="text-xl font-bold text-blue-600 tracking-wider flex items-center gap-2"><span>🐳</span> 蓝鲸小站</a>
             <div>
+                <!-- 未登录状态 -->
                 <template x-if="!user">
                     <button @click="openModal('login')" class="text-blue-500 font-bold px-3 py-1.5 rounded-lg border border-blue-100 text-sm hover:bg-blue-50">登录/注册</button>
                 </template>
+                <!-- 已登录状态 (用户中心) -->
                 <template x-if="user">
                     <button @click="showUserCenter" class="flex items-center gap-2 px-2 py-1 rounded-full border border-transparent hover:border-blue-100 transition relative">
                         <div class="w-7 h-7 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs" x-text="user.username ? user.username[0].toUpperCase() : 'U'"></div>
@@ -70,7 +72,7 @@
                 <button @click="resetAndSearch" class="absolute right-1 top-1 bottom-1 px-3 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-200 transition">搜索</button>
             </div>
             <div class="relative shrink-0">
-                <select x-model="sortType" class="h-full px-2 rounded-xl border border-blue-100 text-xs outline-none bg-white text-gray-600 shadow-sm appearance-none pr-6">
+                <select x-model="sortType" @change="resetAndSearch" class="h-full px-2 rounded-xl border border-blue-100 text-xs outline-none bg-white text-gray-600 shadow-sm appearance-none pr-6">
                     <option value="date-desc">📅 最新</option>
                     <option value="date-asc">📅 最旧</option>
                     <option value="title-asc">🔤 A-Z</option>
@@ -81,37 +83,44 @@
 
         <!-- 导航区域 (3个按钮) -->
         <div class="grid grid-cols-12 gap-3 mb-6 relative z-30">
-            <!-- 1. 分类筛选 -->
+            
+            <!-- 1. 分类筛选按钮 (左侧) -->
             <div class="col-span-4 relative" @click.away="showCatMenu = false">
+                <!-- 按钮文字由 getCategoryLabel() 动态生成 -->
                 <button @click="showCatMenu = !showCatMenu" class="w-full h-12 rounded-xl bg-white border border-blue-200 text-blue-600 font-bold text-sm shadow-sm flex items-center justify-between px-3 hover:bg-blue-50 transition">
-                    <span class="truncate" x-text="getCurCatName()"></span>
+                    <span class="truncate" x-text="getCategoryLabel()"></span>
                     <span class="text-xs transition-transform duration-200" :class="showCatMenu ? 'rotate-180' : ''">▼</span>
                 </button>
-                <div x-show="showCatMenu" x-transition class="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-xl border border-blue-100 overflow-hidden py-1">
+
+                <!-- 下拉菜单 -->
+                <div x-show="showCatMenu" x-cloak x-transition class="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-xl border border-blue-100 z-30 overflow-hidden py-1">
                     <button @click="filterCat(null); showCatMenu=false" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 flex justify-between items-center" :class="!currentCat?'text-blue-600 font-bold bg-blue-50':''">
-                        <span>📂 全部</span><span x-show="!currentCat">✓</span>
+                        <span>📂 全部</span>
+                        <span x-show="!currentCat">✓</span>
                     </button>
+                    <!-- 循环显示分类 (综艺、电视剧、动漫) -->
                     <template x-for="cat in categories" :key="cat.id">
                         <button @click="filterCat(cat.id); showCatMenu=false" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 flex justify-between items-center border-t border-gray-50" :class="currentCat===cat.id?'text-blue-600 font-bold bg-blue-50':''">
-                            <span x-text="cat.name"></span><span x-show="currentCat===cat.id">✓</span>
+                            <span x-text="cat.name"></span>
+                            <span x-show="currentCat===cat.id">✓</span>
                         </button>
                     </template>
                 </div>
             </div>
 
             <!-- 2. 番组索引 -->
-            <button @click="showTagWall('番组')" class="col-span-4 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-bold text-sm shadow-md hover:shadow-lg active:scale-95 transition flex items-center justify-center gap-1" :class="currentTagType==='番组' ? 'ring-2 ring-purple-300 ring-offset-2' : ''">
+            <button @click="showTagWall('番组')" class="col-span-4 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-bold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 active:scale-95" :class="currentTagType==='番组' ? 'ring-2 ring-purple-300 ring-offset-2' : ''">
                 <span>📺</span> 番组
             </button>
 
             <!-- 3. 艺人索引 -->
-            <button @click="showTagWall('艺人')" class="col-span-4 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 text-white font-bold text-sm shadow-md hover:shadow-lg active:scale-95 transition flex items-center justify-center gap-1" :class="currentTagType==='艺人' ? 'ring-2 ring-pink-300 ring-offset-2' : ''">
+            <button @click="showTagWall('艺人')" class="col-span-4 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 text-white font-bold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 active:scale-95" :class="currentTagType==='艺人' ? 'ring-2 ring-pink-300 ring-offset-2' : ''">
                 <span>🎤</span> 艺人
             </button>
         </div>
 
         <!-- 视图1: 标签图片墙 -->
-        <div x-show="viewMode === 'tags'" class="animate-fade-in mb-6">
+        <div x-show="viewMode === 'tags'" x-cloak class="animate-fade-in mb-6">
             <div class="flex justify-between items-center mb-3 px-1">
                 <span class="text-xs font-bold text-gray-500" x-text="currentTagType + ' 索引'"></span>
                 <button @click="resetFilters" class="text-xs text-blue-500">✕ 关闭索引</button>
@@ -132,13 +141,15 @@
 
         <!-- 视图2: 文章列表 -->
         <div x-show="viewMode === 'list'" class="space-y-4 min-h-[300px] animate-fade-in">
-            <div x-show="currentTagId" class="flex justify-between items-center bg-blue-50 px-3 py-2 rounded-lg text-xs text-blue-600 border border-blue-100 shadow-sm">
+            <!-- 标签筛选提示条 -->
+            <div x-show="currentTagId" x-cloak class="flex justify-between items-center bg-blue-50 px-3 py-2 rounded-lg text-xs text-blue-600 border border-blue-100 shadow-sm">
                 <span class="font-bold">🏷️ 正在查看标签内容</span>
                 <button @click="showTagWall(currentTagType)" class="underline hover:text-blue-800">返回索引</button>
             </div>
 
             <template x-for="item in processedResources" :key="item.id">
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-blue-50 hover:shadow-lg hover:-translate-y-0.5 transition duration-300 cursor-pointer" @click="openDetail(item)">
+                    <!-- 标签行 -->
                     <div class="flex flex-wrap gap-1.5 mb-2.5">
                         <span class="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md font-bold" x-text="getCatName(item.category_id)"></span>
                         <template x-for="t in item.tags" :key="t.name">
@@ -158,10 +169,11 @@
             
             <div class="py-6 text-center">
                 <button x-show="!isLoading && hasMore" @click="loadMore" class="text-blue-500 text-xs border border-blue-200 px-6 py-2 rounded-full hover:bg-blue-50 hover:shadow-md transition">点击加载更多</button>
-                <div x-show="isLoading" class="text-blue-500 text-xs animate-pulse">🚀 正在加载...</div>
+                <div x-show="isLoading" class="text-blue-500 text-xs animate-pulse">🚀 正在加载精彩内容...</div>
                 <div x-show="!hasMore && processedResources.length > 0" class="text-gray-300 text-xs mt-4">— 我是有底线的 —</div>
                 <div x-show="!isLoading && processedResources.length === 0" class="text-gray-400 text-sm py-10 flex flex-col items-center">
-                    <span class="text-3xl mb-2">🍃</span><span>暂无内容</span>
+                    <span class="text-3xl mb-2">🍃</span>
+                    <span>暂无相关内容</span>
                 </div>
             </div>
         </div>
@@ -171,14 +183,11 @@
         &copy; 蓝鲸小站 Resource
     </footer>
 
-    <!-- Toast 容器 -->
+    <!-- Toast 组件 -->
     <div class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none" id="toast-container"></div>
-    <script>
-        window.showToast=(m,t='info')=>{const c=document.getElementById('toast-container'),e=document.createElement('div');let s='bg-slate-800 text-white shadow-xl',i='📢';if(t==='success'){s='bg-emerald-500 text-white shadow-emerald-200/50';i='✅'}if(t==='error'){s='bg-rose-500 text-white shadow-rose-200/50';i='❌'}if(t==='warn'){s='bg-amber-400 text-white shadow-amber-200/50';i='⚠️'}e.className=`${s} px-6 py-3 rounded-full text-sm font-bold flex items-center gap-2 pointer-events-auto toast-enter min-w-[200px] justify-center`;e.innerHTML=`<span>${i}</span><span>${m}</span>`;c.appendChild(e);requestAnimationFrame(()=>e.classList.add('toast-enter-active'));setTimeout(()=>{e.classList.remove('toast-enter-active');e.classList.add('toast-leave-active');setTimeout(()=>e.remove(),300)},t==='error'?4000:3000)};window.alert=(m)=>showToast(m,'warn');
-    </script>
+    <script>window.showToast=(m,t='info')=>{const c=document.getElementById('toast-container'),e=document.createElement('div');let s='bg-slate-800 text-white shadow-xl',i='📢';if(t==='success'){s='bg-emerald-500 text-white shadow-emerald-200/50';i='✅'}if(t==='error'){s='bg-rose-500 text-white shadow-rose-200/50';i='❌'}if(t==='warn'){s='bg-amber-400 text-white shadow-amber-200/50';i='⚠️'}e.className=`${s} px-6 py-3 rounded-full text-sm font-bold flex items-center gap-2 pointer-events-auto toast-enter min-w-[200px] justify-center`;e.innerHTML=`<span>${i}</span><span>${m}</span>`;c.appendChild(e);requestAnimationFrame(()=>e.classList.add('toast-enter-active'));setTimeout(()=>{e.classList.remove('toast-enter-active');e.classList.add('toast-leave-active');setTimeout(()=>e.remove(),300)},t==='error'?4000:3000)};window.alert=(m)=>showToast(m,'warn');</script>
 
-    <!-- 弹窗部分 (User Center, Detail, Login) -->
-    <!-- 用户中心 -->
+    <!-- 用户中心弹窗 -->
     <div x-show="showCenter" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-opacity">
         <div class="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl relative transform transition-all scale-100" @click.away="showCenter=false">
             <button @click="showCenter=false" class="absolute top-4 right-4 text-gray-300 hover:text-gray-500 text-xl">&times;</button>
@@ -189,5 +198,196 @@
             </div>
             <div class="bg-gradient-to-br from-blue-50 to-white border border-blue-100 p-5 rounded-xl mb-4 shadow-sm">
                 <div class="flex justify-between items-end mb-2"><span class="text-sm text-gray-600 font-bold">今日剩余钥匙</span><span class="text-2xl font-bold text-blue-600 leading-none" x-text="quota.remaining"></span></div>
-                <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-blue-600 h-2 rounded-full transition-all duration-500" :style="'width: ' + ((quota.remaining/quota.total)*100) + '%'"></div></div>
-                <div class="text-xs text-right text-gray-400 mt-1">总配额: <span
+                <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-blue-600 h-2 rounded-full" :style="'width: ' + ((quota.remaining/quota.total)*100) + '%'"></div></div>
+                <div class="text-xs text-right text-gray-400 mt-1">总配额: <span x-text="quota.total"></span></div>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded-xl text-xs text-yellow-800 border border-yellow-100 mb-6 leading-relaxed">
+                <strong>✨ 连续解锁奖励规则：</strong><br>• 1-10天: 次日+1 (上限3)<br>• 11-20天: 上限4<br>• >20天: 上限5<br>• 中断则重置为1
+            </div>
+            <div class="space-y-3">
+                <button @click="openChat" class="w-full py-2.5 border border-blue-200 text-blue-600 rounded-xl hover:bg-blue-50 font-bold transition flex items-center justify-center gap-2">📩 私信管理员 <span x-show="unreadCount > 0" class="bg-red-500 text-white text-[10px] px-1.5 rounded-full" x-text="unreadCount"></span></button>
+                <button @click="showDonate=true;showCenter=false" class="w-full py-2.5 border border-pink-200 text-pink-600 rounded-xl hover:bg-pink-50 font-bold transition">❤️ 捐赠支持</button>
+                <button @click="logout" class="w-full py-2.5 bg-gray-100 text-gray-500 rounded-xl hover:bg-red-50 hover:text-red-500 font-bold transition">退出登录</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 捐赠弹窗 -->
+    <div x-show="showDonate" x-cloak class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50" @click.self="showDonate=false">
+        <div class="bg-white p-4 rounded-2xl w-[70%] text-center shadow-2xl transform transition-all">
+            <h3 class="font-bold text-lg mb-2 text-pink-500">感谢您的支持！</h3>
+            <p class="text-xs text-gray-400 mb-4">保存图片扫码</p>
+            <img src="https://img.xn--xit.de5.net/code.png" class="w-full rounded-xl mb-4 shadow-lg">
+            <button @click="showDonate=false" class="w-full py-2 bg-gray-100 rounded-lg text-sm font-bold hover:bg-gray-200 transition">关闭</button>
+        </div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <div x-show="detailItem" x-cloak class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] relative animate-fade-in-up" @click.away="detailItem=null">
+            <div class="p-5 border-b bg-white rounded-t-2xl z-10 shrink-0 flex justify-between items-start">
+                <div><h2 class="text-lg font-bold text-slate-800 leading-snug" x-text="detailItem?.title"></h2><div class="flex flex-wrap gap-2 mt-2"><template x-if="detailItem?.tags"><template x-for="t in detailItem.tags" :key="t.name"><span class="text-[10px] px-2 py-0.5 rounded-full text-white font-bold" :class="t.type==='番组'?'bg-purple-400':'bg-pink-400'" x-text="t.name"></span></template></template></div></div><button @click="detailItem=null" class="text-gray-400 text-2xl">&times;</button>
+            </div>
+            <div class="p-5 overflow-y-auto custom-scrollbar">
+                <div x-show="isLocked" class="mb-6 p-4 bg-blue-50 rounded-xl text-center border border-blue-100"><p class="text-sm text-blue-800 mb-2 font-bold">🔒 此帖包含受限内容</p><button @click="unlockAll(detailItem.id)" class="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition">消耗 1 把钥匙解锁全部</button></div>
+                <div class="space-y-4 mb-8"><template x-for="(block, idx) in detailItem?.content" :key="idx"><div class="break-words text-sm"><template x-if="block.type === 'text'"><p class="whitespace-pre-wrap text-gray-700 leading-relaxed" x-text="block.value"></p></template><template x-if="block.type === 'image'"><img :src="block.isLockedMask ? 'https://via.placeholder.com/400x200?text=LOCKED' : block.value" loading="lazy" class="rounded-lg w-full" :class="block.isLockedMask?'opacity-50 blur-sm':''"></template><template x-if="block.type === 'link'"><div class="p-3 bg-gray-50 rounded-lg border border-gray-100 flex flex-col gap-1"><div class="flex items-center gap-2"><span class="text-lg">🔗</span><span class="font-bold text-gray-600 text-xs" x-text="block.linkType || '夸克链接'"></span></div><template x-if="block.isLockedMask"><span class="text-gray-400 text-xs italic">*** 内容已隐藏 ***</span></template><template x-if="!block.isLockedMask"><div class="text-xs break-all font-mono select-all bg-white p-1 rounded border" x-text="block.value"></div><a :href="block.value" target="_blank" class="text-xs text-blue-500 hover:underline text-right mt-1">跳转 &rarr;</a></template></div></template></div></template></div>
+                <div class="border-t pt-4"><div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-700 text-sm">评论区</h3><button @click="like(detailItem.id)" class="text-pink-500 text-xs font-bold bg-pink-50 px-3 py-1 rounded-full">❤️ <span x-text="detailItem?.like_count||0"></span></button></div><div class="flex gap-2 mb-4"><input type="text" x-model="newComment" @keyup.enter="postComment(detailItem.id)" placeholder="分享..." class="flex-1 border border-gray-200 bg-gray-50 p-3 rounded-xl text-sm outline-none"><button @click="postComment(detailItem.id)" class="bg-blue-600 text-white px-4 rounded-lg text-xs font-bold">发送</button></div><div class="space-y-3"><template x-for="c in comments" :key="c.id"><div class="bg-gray-50 p-3 rounded-xl text-xs"><div class="flex justify-between text-gray-400 mb-1"><span class="font-bold text-blue-600" x-text="c.username"></span><span x-text="new Date(c.created_at).toLocaleString()"></span></div><div class="text-gray-700" x-text="c.content"></div></div></template></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 登录/注册 模态框 -->
+    <div x-show="modalMode" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
+            <button @click="modalMode = null" class="absolute top-4 right-4 text-gray-300 text-xl">&times;</button>
+            <div x-show="modalMode === 'login'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">登录</h2><div class="space-y-3"><input type="text" x-model="form.loginId" placeholder="QQ邮箱 / 用户名" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-3 top-2.5 text-xs text-gray-400" x-text="showPwd?'🙈':'👁️'"></button></div><button @click="doLogin" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm">立即登录</button><div class="flex justify-between text-xs text-gray-500 px-1"><button @click="modalMode = 'register'">注册账号</button><button @click="modalMode = 'reset'">找回密码</button></div></div></div>
+            <div x-show="modalMode === 'register'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">注册</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="QQ邮箱" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('register')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="text" x-model="form.username" placeholder="设置用户名" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="设置密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-2 top-2 text-xs" x-text="showPwd?'🙈':'👁️'"></button></div><input :type="showPwd?'text':'password'" x-model="form.confirmPassword" placeholder="确认密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doRegister" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold text-sm mt-2">注册并登录</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">去登录</button></div></div></div>
+            <div x-show="modalMode === 'reset'"><h2 class="text-xl font-bold mb-4 text-center">重置密码</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="邮箱" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('reset')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 text-xs rounded-lg font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="password" x-model="form.newPassword" placeholder="新密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doReset" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold">确认</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">返回</button></div></div></div>
+            <div x-show="modalMode === 'message'"><div class="flex justify-between items-center mb-4 border-b pb-2"><h2 class="font-bold text-blue-600">私信管理员</h2></div><div class="h-64 overflow-y-auto bg-gray-50 p-3 rounded-lg mb-3 custom-scrollbar space-y-2" id="chatBox"><template x-for="msg in messages" :key="msg.id"><div class="flex flex-col" :class="msg.sender==='user'?'items-end':'items-start'"><div class="max-w-[85%] p-2 rounded-lg text-xs" :class="msg.sender==='user'?'bg-blue-500 text-white rounded-tr-none':'bg-white border rounded-tl-none'"><span x-text="msg.content"></span></div></div></template><div x-show="messages.length===0" class="text-center text-gray-400 text-xs pt-10">暂无消息</div></div><div class="flex gap-2"><input type="text" x-model="msgInput" class="flex-1 border p-2 rounded-lg text-sm outline-none" placeholder="输入..." @keyup.enter="sendMsg"><button @click="sendMsg" class="bg-blue-600 text-white px-4 rounded-lg text-xs font-bold">发送</button></div></div>
+        </div>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                user: JSON.parse(localStorage.getItem('user') || 'null'),
+                token: localStorage.getItem('token') || '',
+                categories: [], resources: [], tags: [], 
+                viewMode: 'list', 
+                currentCat: null, currentTagType: null, currentTagId: null,
+                quota: {total:0, remaining:0}, unreadCount: 0,
+                modalMode: null, showCenter: false, showDonate: false, detailItem: null,
+                form: { loginId:'', email:'', username:'', password:'', confirmPassword:'', code:'' },
+                searchQ: '', newComment: '', comments: [], msgInput: '', messages: [], timer:0, sortType: 'date-desc', showPwd: false,
+                page: 1, hasMore: true, isLoading: false, showCatMenu: false,
+
+                // 【核心修复】确保 categories 加载前不会报错
+                getCategoryLabel() {
+                    if (this.currentCat && this.categories.length > 0) {
+                        const c = this.categories.find(c => c.id == this.currentCat);
+                        return c ? `📂 ${c.name}` : '📂 类别';
+                    }
+                    return '📂 类别';
+                },
+
+                get processedResources() {
+                    let list = this.resources.map(r => ({...r}));
+                    return list.sort((a, b) => {
+                        const getDate = (item) => {
+                            if (item.custom_date) {
+                                const s = item.custom_date.replace(/年/g, '/').replace(/月/g, '/').replace(/日/g, '');
+                                const d = new Date(s); if (!isNaN(d)) return d;
+                            } return new Date(item.created_at);
+                        };
+                        if (this.sortType === 'date-desc') return getDate(b) - getDate(a);
+                        if (this.sortType === 'date-asc') return getDate(a) - getDate(b);
+                        if (this.sortType === 'title-asc') return a.title.localeCompare(b.title, 'zh');
+                        return 0;
+                    });
+                },
+                get isLocked() { if(!this.detailItem) return false; return this.detailItem.content.some(b => b.isLockedMask); },
+
+                async init() { 
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                    if (!isMobile && document.getElementById('pc-block')) document.getElementById('pc-block').style.display = 'flex';
+                    if(this.token) this.refreshUser(); 
+                    this.doSearch(); 
+                    window.addEventListener('scroll', this.handleScroll.bind(this));
+                },
+
+                handleScroll() {
+                    const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+                    if (scrollTop + clientHeight >= scrollHeight - 100 && !this.isLoading && this.hasMore) {
+                        this.loadMore();
+                    }
+                },
+
+                async doSearch() { return this.fetchResources(true); },
+                resetAndSearch() { this.doSearch(); },
+                async loadMore() { this.page++; await this.fetchResources(false); },
+
+                async fetchResources(isReset) {
+                    this.isLoading = true;
+                    if(isReset) { this.page = 1; this.resources = []; this.hasMore = true; }
+
+                    let url = `/api/public/home?page=${this.page}&q=${this.searchQ}`;
+                    if(this.currentCat) url += `&catId=${this.currentCat}`; 
+                    if(this.currentTagId) url += `&tagId=${this.currentTagId}`; 
+                    
+                    try {
+                        const res = await fetch(url);
+                        const data = await res.json();
+                        // 初始化分类数据
+                        if(this.page === 1) this.categories = data.categories || [];
+                        
+                        if(data.resources && data.resources.length > 0) {
+                            const newItems = data.resources.filter(n => !this.resources.find(o => o.id === n.id));
+                            this.resources = [...this.resources, ...newItems];
+                        }
+                        this.hasMore = data.hasMore;
+                    } catch(e) { console.error(e); }
+                    this.isLoading = false;
+                },
+
+                resetFilters() { this.currentCat = null; this.currentTagType = null; this.currentTagId = null; this.viewMode = 'list'; this.doSearch(); },
+                
+                filterCat(id) { 
+                    this.currentCat = id; 
+                    this.currentTagType = null; 
+                    this.currentTagId = null; 
+                    this.viewMode = 'list'; 
+                    this.doSearch(); 
+                },
+                
+                async showTagWall(type) {
+                    this.currentTagType = type; this.currentCat = null; this.currentTagId = null; this.viewMode = 'tags';
+                    const res = await fetch(`/api/public/tags?type=${type}`); this.tags = await res.json();
+                },
+                filterByTagId(id) { this.currentTagId = id; this.viewMode = 'list'; this.doSearch(); },
+
+                async refreshUser() { const res = await fetch('/api/user/info', { headers: {'Authorization': `Bearer ${this.token}`} }); if(res.ok) { const data = await res.json(); this.user = data.user; this.quota = data.quota; this.unreadCount = data.unread_count||0; localStorage.setItem('user', JSON.stringify(data.user)); } else this.logout(); },
+                showUserCenter() { this.refreshUser(); this.showCenter = true; },
+                openModal(mode) { this.modalMode = mode; this.form = {loginId:'', email:'', username:'', password:'', confirmPassword:'', code:''}; this.showPwd=false; },
+                
+                // === 私信相关 ===
+                async openChat() { 
+                    this.showCenter=false; 
+                    this.modalMode='message'; 
+                    const res = await fetch('/api/user/messages', { headers: {'Authorization': `Bearer ${this.token}`} }); 
+                    if(res.ok) { 
+                        this.messages = await res.json(); 
+                        this.$nextTick(() => {
+                            const box = document.getElementById('chatBox');
+                            if(box) box.scrollTop = box.scrollHeight;
+                        }); 
+                    } 
+                },
+                async sendMsg() { 
+                    if(!this.msgInput) return; 
+                    const res = await fetch('/api/user/message/send', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({content:this.msgInput})}); 
+                    if(res.ok) { 
+                        this.msgInput = ''; 
+                        // 重新加载消息
+                        const r = await fetch('/api/user/messages', { headers: {'Authorization': `Bearer ${this.token}`} }); 
+                        this.messages = await r.json();
+                        this.$nextTick(() => document.getElementById('chatBox').scrollTop = 9999);
+                    } else showToast('发送失败','error'); 
+                },
+
+                // 认证相关
+                async sendCode(type) { if(!this.form.email) return showToast('邮箱必填','warn'); const res = await fetch('/api/auth/send-code', {method:'POST', body:JSON.stringify({email:this.form.email, type})}); if(res.ok){ showToast('🚀 验证码已发送','success'); this.timer=60; setInterval(()=>this.timer>0&&this.timer--,1000); } else showToast((await res.json()).error,'error'); },
+                async doRegister() { if(this.form.password !== this.form.confirmPassword) return showToast('两次密码不一致','warn'); const res = await fetch('/api/auth/register', {method:'POST', body:JSON.stringify(this.form)}); const data = await res.json(); if(res.ok) { showToast('🎉 注册成功','success'); this.loginSuccess(data); } else showToast(data.error,'error'); },
+                async doLogin() { const res = await fetch('/api/auth/login', {method:'POST', body:JSON.stringify({...this.form, isAdmin:false})}); const data = await res.json(); if(res.ok) { showToast('👋 欢迎回来','success'); this.loginSuccess(data); } else showToast(data.error,'error'); },
+                async doReset() { const res = await fetch('/api/auth/reset-password', {method:'POST', body:JSON.stringify(this.form)}); if(res.ok) { showToast('✅ 密码重置成功','success'); this.modalMode='login'; } else showToast((await res.json()).error,'error'); },
+                loginSuccess(data) { this.user=data.user; this.token=data.token; localStorage.setItem('user', JSON.stringify(data.user)); localStorage.setItem('token', data.token); this.modalMode=null; this.refreshUser(); },
+                logout() { localStorage.clear(); location.reload(); },
+
+                async unlockAll(resourceId) { if(!this.user) { showToast('请先登录','warn'); return this.modalMode = 'login'; } if(!confirm('消耗 1 把钥匙解锁全部?')) return; const res = await fetch('/api/resource/unlock', { method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId}) }); const data = await res.json(); if(res.ok) { showToast('🔓 解锁成功','success'); const fullContent = data.fullContent; this.detailItem.content = this.detailItem.content.map((b, idx) => { if(b.isLockedMask) return { ...b, value: fullContent[idx].value, isLockedMask: false }; return b; }); this.refreshUser(); } else showToast(data.error,'error'); },
+                async openDetail(item) { this.detailItem = JSON.parse(JSON.stringify(item)); const res = await fetch(`/api/resource/comments/${item.id}`); this.comments = await res.json(); },
+                async postComment(rid) { if(!this.user) { showToast('请先登录','warn'); return this.modalMode = 'login'; } if(!this.newComment) return; await fetch('/api/resource/comment', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid, content:this.newComment})}); this.newComment = ''; showToast('评论已发送','success'); this.openDetail(this.detailItem); },
+                async like(rid) { if(!this.user) { showToast('请先登录','warn'); return this.modalMode = 'login'; } await fetch('/api/resource/like', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid})}); this.detailItem.like_count++; showToast('❤️ 点赞成功','success'); },
+            }
+        }
+    </script>
+</body>
+</html>
