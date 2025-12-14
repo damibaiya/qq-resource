@@ -14,89 +14,156 @@
     <style>
         [x-cloak] { display: none !important; } 
         body { background: #f0f9ff; color: #334155; font-family: sans-serif; }
+        /* 隐藏滚动条但保留功能 */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body x-data="app()" @scroll.window="handleScroll">
+    <!-- 顶部导航 -->
     <nav class="bg-white/95 backdrop-blur shadow-sm sticky top-0 z-40 border-b border-blue-100">
         <div class="max-w-5xl mx-auto px-4 h-14 flex justify-between items-center">
             <a href="/" class="text-xl font-bold text-blue-600 tracking-wider flex items-center gap-2"><span>🐳</span> 蓝鲸小站</a>
             <div>
                 <template x-if="!user">
-                    <button @click="openModal('login')" class="text-blue-500 font-bold px-3 py-1.5 rounded-lg border border-blue-100 text-sm">登录/注册</button>
+                    <button @click="openModal('login')" class="text-blue-500 font-bold px-3 py-1.5 rounded-lg border border-blue-100 text-sm hover:bg-blue-50">登录/注册</button>
                 </template>
                 <template x-if="user">
                     <a href="/user" class="flex items-center gap-2 px-2 py-1 rounded-full border border-transparent hover:border-blue-100 transition relative">
-                        <div class="w-7 h-7 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs" x-text="user.username[0].toUpperCase()"></div>
-                        <div x-show="unreadCount > 0" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></div>
-                        <div class="text-xs text-blue-500">🔑 <span x-text="quota.remaining"></span></div>
+                        <div class="w-7 h-7 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs shadow-sm" x-text="user.username[0].toUpperCase()"></div>
+                        <div x-show="unreadCount > 0" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>
+                        <div class="text-xs text-blue-500 font-medium">🔑 <span x-text="quota.remaining"></span></div>
                     </a>
                 </template>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-4xl mx-auto px-4 py-6">
+    <main class="max-w-4xl mx-auto px-4 py-4">
+        <!-- 搜索栏 (紧凑设计) -->
         <div class="flex gap-2 mb-4">
-            <input type="text" x-model="searchQ" @keyup.enter="resetAndSearch" placeholder="🔍 搜标题/日期..." class="flex-1 p-2.5 rounded-lg border border-blue-100 text-sm outline-none focus:ring-2 focus:ring-blue-200">
-            <select x-model="sortType" class="p-2 rounded-lg border border-blue-100 text-xs outline-none bg-white">
-                <option value="date-desc">📅 新→旧</option><option value="date-asc">📅 旧→新</option><option value="title-asc">🔤 A-Z</option>
-            </select>
-        </div>
-
-        <div class="flex flex-col gap-2 mb-4">
-            <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                <button @click="resetFilters()" :class="!viewMode && !currentCat ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 border'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition">全部</button>
-                <template x-for="cat in categories" :key="cat.id">
-                    <button @click="filterCat(cat.id)" :class="currentCat===cat.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 border'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition" x-text="cat.name"></button>
-                </template>
-                <div class="w-px bg-gray-300 h-5 self-center mx-1"></div>
-                <button @click="showTagWall('番组')" :class="viewMode==='tags' && currentTagType==='番组' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 border border-purple-100'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition">📺 番组</button>
-                <button @click="showTagWall('艺人')" :class="viewMode==='tags' && currentTagType==='艺人' ? 'bg-pink-600 text-white' : 'bg-white text-pink-600 border border-pink-100'" class="px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition">🎤 艺人</button>
+            <div class="relative flex-1">
+                <input type="text" x-model="searchQ" @keyup.enter="resetAndSearch" placeholder="🔍 搜标题/日期..." class="w-full pl-3 pr-10 py-2.5 rounded-xl border border-blue-100 text-sm outline-none focus:ring-2 focus:ring-blue-300 shadow-sm bg-white">
+                <button @click="resetAndSearch" class="absolute right-1 top-1 bottom-1 px-3 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-200 transition">搜索</button>
+            </div>
+            <!-- 排序按钮 (小型化) -->
+            <div class="relative shrink-0">
+                <select x-model="sortType" class="h-full px-2 rounded-xl border border-blue-100 text-xs outline-none bg-white text-gray-600 shadow-sm appearance-none pr-6">
+                    <option value="date-desc">📅 最新</option>
+                    <option value="date-asc">📅 最旧</option>
+                    <option value="title-asc">🔤 A-Z</option>
+                </select>
+                <div class="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-[10px]">▼</div>
             </div>
         </div>
 
-        <div x-show="viewMode === 'tags'" class="animate-fade-in">
-            <div class="mb-2 text-xs text-gray-400" x-text="'点击图片查看 ' + currentTagType + ' 列表：'"></div>
+        <!-- 【核心修改】导航区域 -->
+        <div class="grid grid-cols-12 gap-3 mb-6">
+            
+            <!-- 1. 分类筛选按钮 (左侧，占较小空间) -->
+            <div class="col-span-4 relative" @click.away="showCatMenu = false">
+                <button @click="showCatMenu = !showCatMenu" class="w-full h-12 rounded-xl bg-white border border-blue-200 text-blue-600 font-bold text-sm shadow-sm flex items-center justify-between px-3 hover:bg-blue-50 transition">
+                    <span class="truncate" x-text="currentCatName"></span>
+                    <span class="text-xs transition-transform duration-200" :class="showCatMenu ? 'rotate-180' : ''">▼</span>
+                </button>
+
+                <!-- 下拉菜单 -->
+                <div x-show="showCatMenu" x-transition.opacity.duration.200ms class="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-xl border border-blue-100 z-30 overflow-hidden py-1">
+                    <button @click="filterCat(null); showCatMenu=false" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 flex justify-between items-center" :class="!currentCat?'text-blue-600 font-bold bg-blue-50':''">
+                        <span>📂 全部</span>
+                        <span x-show="!currentCat">✓</span>
+                    </button>
+                    <template x-for="cat in categories" :key="cat.id">
+                        <button @click="filterCat(cat.id); showCatMenu=false" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 flex justify-between items-center border-t border-gray-50" :class="currentCat===cat.id?'text-blue-600 font-bold bg-blue-50':''">
+                            <span x-text="cat.name"></span>
+                            <span x-show="currentCat===cat.id">✓</span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- 2. 番组索引 (中间，强调显示) -->
+            <button @click="showTagWall('番组')" class="col-span-4 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-bold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 active:scale-95" :class="currentTagType==='番组' ? 'ring-2 ring-purple-300 ring-offset-2' : ''">
+                <span>📺</span> 番组
+            </button>
+
+            <!-- 3. 艺人索引 (右侧，强调显示) -->
+            <button @click="showTagWall('艺人')" class="col-span-4 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 text-white font-bold text-sm shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 active:scale-95" :class="currentTagType==='艺人' ? 'ring-2 ring-pink-300 ring-offset-2' : ''">
+                <span>🎤</span> 艺人
+            </button>
+
+        </div>
+
+        <!-- 视图1: 标签图片墙 (优化间距和圆角) -->
+        <div x-show="viewMode === 'tags'" class="animate-fade-in mb-6">
+            <div class="flex justify-between items-center mb-3 px-1">
+                <span class="text-xs font-bold text-gray-500" x-text="currentTagType + ' 索引'"></span>
+                <button @click="resetFilters" class="text-xs text-blue-500">✕ 关闭索引</button>
+            </div>
             <div class="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 <template x-for="t in tags" :key="t.id">
-                    <div @click="filterByTagId(t.id)" class="bg-white rounded-lg p-2 shadow-sm border border-gray-100 text-center cursor-pointer hover:border-blue-300 transition" :class="currentTagId===t.id?'ring-2 ring-blue-400':''">
-                        <div class="aspect-square w-full rounded-md mb-2 bg-gray-50 overflow-hidden relative">
-                            <img x-show="t.image_url" :src="t.image_url" class="w-full h-full object-cover">
-                            <div x-show="!t.image_url" class="absolute inset-0 flex items-center justify-center text-gray-300 text-xs">暂无图片</div>
+                    <div @click="filterByTagId(t.id)" class="bg-white rounded-xl p-2 shadow-sm border border-gray-100 text-center cursor-pointer hover:border-blue-400 hover:shadow-md transition group" :class="currentTagId===t.id?'ring-2 ring-blue-400 border-transparent':''">
+                        <div class="aspect-square w-full rounded-lg mb-2 bg-gray-50 overflow-hidden relative">
+                            <img x-show="t.image_url" :src="t.image_url" loading="lazy" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+                            <div x-show="!t.image_url" class="absolute inset-0 flex items-center justify-center text-gray-300 text-xs">No Img</div>
                         </div>
-                        <div class="text-xs font-bold truncate text-gray-700" x-text="t.name"></div>
+                        <div class="text-xs font-bold truncate text-gray-700 group-hover:text-blue-600" x-text="t.name"></div>
                     </div>
                 </template>
             </div>
-            <div x-show="tags.length === 0" class="text-center py-10 text-gray-400 text-xs">暂无标签</div>
+            <div x-show="tags.length === 0" class="text-center py-12 text-gray-400 text-xs bg-white rounded-xl border border-dashed">暂无相关标签</div>
         </div>
 
+        <!-- 视图2: 文章列表 -->
         <div x-show="viewMode === 'list'" class="space-y-4 min-h-[300px] animate-fade-in">
-            <div x-show="currentTagId" class="flex justify-between items-center bg-blue-50 p-2 rounded-lg text-xs text-blue-600 mb-2">
-                <span>正在显示标签筛选结果</span><button @click="showTagWall(currentTagType)" class="underline">返回标签墙</button>
+            <!-- 标签筛选提示条 -->
+            <div x-show="currentTagId" class="flex justify-between items-center bg-blue-50 px-3 py-2 rounded-lg text-xs text-blue-600 border border-blue-100 shadow-sm">
+                <span class="font-bold">🏷️ 正在查看标签内容</span>
+                <button @click="showTagWall(currentTagType)" class="underline hover:text-blue-800">返回索引</button>
             </div>
+
             <template x-for="item in processedResources" :key="item.id">
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-blue-50 hover:shadow-md transition cursor-pointer" @click="openDetail(item)">
-                    <div class="flex flex-wrap gap-1 mb-2">
-                        <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded" x-text="getCatName(item.category_id)"></span>
-                        <template x-for="t in item.tags" :key="t.name"><span class="text-[10px] px-1.5 py-0.5 rounded text-white" :class="t.type==='番组'?'bg-purple-400':'bg-pink-400'" x-text="t.name"></span></template>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-blue-50 hover:shadow-lg hover:-translate-y-0.5 transition duration-300 cursor-pointer" @click="openDetail(item)">
+                    <!-- 标签行 -->
+                    <div class="flex flex-wrap gap-1.5 mb-2.5">
+                        <span class="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md font-bold" x-text="getCatName(item.category_id)"></span>
+                        <template x-for="t in item.tags" :key="t.name">
+                            <span class="text-[10px] px-2 py-0.5 rounded-md text-white font-medium shadow-sm" :class="t.type==='番组'?'bg-purple-400':'bg-pink-400'" x-text="t.name"></span>
+                        </template>
                     </div>
-                    <h3 class="text-base font-bold text-slate-800 line-clamp-2 mb-2" x-text="item.title"></h3>
-                    <div class="text-xs text-gray-400 flex items-center justify-between"><span x-text="item.custom_date || '日期不详'"></span><div class="flex gap-3"><span>💬 <span x-text="item.comment_count"></span></span><span>❤️ <span x-text="item.like_count"></span></span></div></div>
+                    <h3 class="text-base font-bold text-slate-800 line-clamp-2 mb-2.5 leading-snug" x-text="item.title"></h3>
+                    <div class="text-xs text-gray-400 flex items-center justify-between pt-2 border-t border-gray-50">
+                        <span class="flex items-center gap-1">📅 <span x-text="item.custom_date || '日期不详'"></span></span>
+                        <div class="flex gap-4">
+                            <span class="flex items-center gap-1">💬 <span x-text="item.comment_count"></span></span>
+                            <span class="flex items-center gap-1 text-pink-400">❤️ <span x-text="item.like_count"></span></span>
+                        </div>
+                    </div>
                 </div>
             </template>
-            <div class="py-4 text-center">
-                <button x-show="!isLoading && hasMore" @click="loadMore" class="text-blue-500 text-xs border border-blue-200 px-4 py-2 rounded-full hover:bg-blue-50">点击加载更多</button>
-                <div x-show="isLoading" class="text-blue-500 text-xs">🚀 正在加载...</div>
-                <div x-show="!hasMore && processedResources.length > 0" class="text-gray-300 text-xs">没有更多了</div>
-                <div x-show="!isLoading && processedResources.length === 0" class="text-gray-400 text-sm">暂无内容</div>
+            
+            <div class="py-6 text-center">
+                <button x-show="!isLoading && hasMore" @click="loadMore" class="text-blue-500 text-xs border border-blue-200 px-6 py-2 rounded-full hover:bg-blue-50 hover:shadow-md transition">点击加载更多</button>
+                <div x-show="isLoading" class="text-blue-500 text-xs animate-pulse">🚀 正在加载精彩内容...</div>
+                <div x-show="!hasMore && processedResources.length > 0" class="text-gray-300 text-xs mt-4">— 我是有底线的 —</div>
+                <div x-show="!isLoading && processedResources.length === 0" class="text-gray-400 text-sm py-10 flex flex-col items-center">
+                    <span class="text-3xl mb-2">🍃</span>
+                    <span>暂无相关内容</span>
+                </div>
             </div>
         </div>
     </main>
 
-    <footer class="text-center py-6 text-xs text-gray-400 border-t border-blue-50 mt-6">&copy; 蓝鲸小站 Resource</footer>
+    <footer class="text-center py-8 text-xs text-gray-400 border-t border-blue-50 mt-8">
+        &copy; 蓝鲸小站 Resource
+    </footer>
 
-    <!-- 弹窗部分省略，保持之前一致 -->
+    <!-- Toast 组件 -->
+    <div class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none" id="toast-container"></div>
+    <style>.toast-enter{transform:translateY(-20px);opacity:0}.toast-enter-active{transform:translateY(0);opacity:1;transition:all .3s ease-out}.toast-leave{transform:translateY(0);opacity:1}.toast-leave-active{transform:translateY(-20px);opacity:0;transition:all .3s ease-in}</style>
+    <script>window.showToast=(m,t='info')=>{const c=document.getElementById('toast-container'),e=document.createElement('div');let s='bg-slate-800 text-white shadow-xl',i='📢';if(t==='success'){s='bg-emerald-500 text-white shadow-emerald-200/50';i='✅'}if(t==='error'){s='bg-rose-500 text-white shadow-rose-200/50';i='❌'}if(t==='warn'){s='bg-amber-400 text-white shadow-amber-200/50';i='⚠️'}e.className=`${s} px-6 py-3 rounded-full text-sm font-bold flex items-center gap-2 pointer-events-auto toast-enter min-w-[200px] justify-center`;e.innerHTML=`<span>${i}</span><span>${m}</span>`;c.appendChild(e);requestAnimationFrame(()=>e.classList.add('toast-enter-active'));setTimeout(()=>{e.classList.remove('toast-enter-active');e.classList.add('toast-leave-active');setTimeout(()=>e.remove(),300)},t==='error'?4000:3000)};window.alert=(m)=>showToast(m,'warn');</script>
+
+    <!-- 详情弹窗 -->
     <div x-show="detailItem" x-cloak class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] relative" @click.away="detailItem=null">
             <div class="p-5 border-b bg-white rounded-t-2xl z-10 shrink-0 flex justify-between items-start">
@@ -104,120 +171,13 @@
             </div>
             <div class="p-5 overflow-y-auto custom-scrollbar">
                 <div x-show="isLocked" class="mb-6 p-4 bg-blue-50 rounded-xl text-center border border-blue-100"><p class="text-sm text-blue-800 mb-2 font-bold">🔒 此帖包含受限内容</p><button @click="unlockAll(detailItem.id)" class="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition">消耗 1 把钥匙解锁全部</button></div>
-                <div class="space-y-4 mb-8"><template x-for="(block, idx) in detailItem?.content" :key="idx"><div class="break-words text-sm"><template x-if="block.type === 'text'"><p class="whitespace-pre-wrap text-gray-700 leading-relaxed" x-text="block.value"></p></template><template x-if="block.type === 'image'"><img :src="block.isLockedMask ? 'https://via.placeholder.com/400x200?text=LOCKED' : block.value" class="rounded-lg w-full" :class="block.isLockedMask?'opacity-50 blur-sm':''"></template><template x-if="block.type === 'link'"><div class="p-3 bg-gray-50 rounded-lg border border-gray-100 flex flex-col gap-1"><div class="flex items-center gap-2"><span class="text-lg">🔗</span><span class="font-bold text-gray-600 text-xs" x-text="block.linkType || '夸克链接'"></span></div><template x-if="block.isLockedMask"><span class="text-gray-400 text-xs italic">*** 内容已隐藏 ***</span></template><template x-if="!block.isLockedMask"><div class="text-xs break-all font-mono select-all bg-white p-1 rounded border" x-text="block.value"></div><a :href="block.value" target="_blank" class="text-xs text-blue-500 hover:underline text-right mt-1">跳转 &rarr;</a></template></div></template></div></template></div>
+                <div class="space-y-4 mb-8"><template x-for="(block, idx) in detailItem?.content" :key="idx"><div class="break-words text-sm"><template x-if="block.type === 'text'"><p class="whitespace-pre-wrap text-gray-700 leading-relaxed" x-text="block.value"></p></template><template x-if="block.type === 'image'"><img :src="block.isLockedMask ? 'https://via.placeholder.com/400x200?text=LOCKED' : block.value" loading="lazy" class="rounded-lg w-full" :class="block.isLockedMask?'opacity-50 blur-sm':''"></template><template x-if="block.type === 'link'"><div class="p-3 bg-gray-50 rounded-lg border border-gray-100 flex flex-col gap-1"><div class="flex items-center gap-2"><span class="text-lg">🔗</span><span class="font-bold text-gray-600 text-xs" x-text="block.linkType || '夸克链接'"></span></div><template x-if="block.isLockedMask"><span class="text-gray-400 text-xs italic">*** 内容已隐藏 ***</span></template><template x-if="!block.isLockedMask"><div class="text-xs break-all font-mono select-all bg-white p-1 rounded border" x-text="block.value"></div><a :href="block.value" target="_blank" class="text-xs text-blue-500 hover:underline text-right mt-1">跳转 &rarr;</a></template></div></template></div></template></div>
                 <div class="border-t pt-4"><div class="flex justify-between items-center mb-6"><h3 class="font-bold text-gray-700 text-sm">评论区</h3><button @click="like(detailItem.id)" class="text-pink-500 text-xs font-bold bg-pink-50 px-3 py-1 rounded-full">❤️ <span x-text="detailItem?.like_count||0"></span></button></div><div class="flex gap-2 mb-4"><input type="text" x-model="newComment" @keyup.enter="postComment(detailItem.id)" placeholder="分享..." class="flex-1 border border-gray-200 bg-gray-50 p-3 rounded-xl text-sm outline-none"><button @click="postComment(detailItem.id)" class="bg-blue-600 text-white px-4 rounded-lg text-xs font-bold">发送</button></div><div class="space-y-3"><template x-for="c in comments" :key="c.id"><div class="bg-gray-50 p-3 rounded-xl text-xs"><div class="flex justify-between text-gray-400 mb-1"><span class="font-bold text-blue-600" x-text="c.username"></span><span x-text="new Date(c.created_at).toLocaleString()"></span></div><div class="text-gray-700" x-text="c.content"></div></div></template></div></div>
             </div>
         </div>
     </div>
-    <div x-show="modalMode" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative"><button @click="modalMode = null" class="absolute top-4 right-4 text-gray-300 text-xl">&times;</button><div x-show="modalMode === 'login'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">登录</h2><div class="space-y-3"><input type="text" x-model="form.loginId" placeholder="QQ邮箱 / 用户名" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-3 top-2.5 text-xs text-gray-400" x-text="showPwd?'🙈':'👁️'"></button></div><button @click="doLogin" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm">立即登录</button><div class="flex justify-between text-xs text-gray-500 px-1"><button @click="modalMode = 'register'">注册账号</button><button @click="modalMode = 'reset'">找回密码</button></div></div></div><div x-show="modalMode === 'register'"><h2 class="text-xl font-bold text-blue-600 mb-4 text-center">注册</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="QQ邮箱" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('register')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="text" x-model="form.username" placeholder="设置用户名" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><div class="relative"><input :type="showPwd?'text':'password'" x-model="form.password" placeholder="设置密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="showPwd=!showPwd" class="absolute right-2 top-2 text-xs" x-text="showPwd?'🙈':'👁️'"></button></div><input :type="showPwd?'text':'password'" x-model="form.confirmPassword" placeholder="确认密码" class="w-full p-2 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doRegister" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold text-sm mt-2">注册并登录</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">去登录</button></div></div></div><div x-show="modalMode === 'reset'"><h2 class="text-xl font-bold mb-4 text-center">重置密码</h2><div class="space-y-3"><input type="email" x-model="form.email" placeholder="邮箱" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><div class="flex gap-2"><input type="text" x-model="form.code" placeholder="验证码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="sendCode('reset')" :disabled="timer>0" class="w-20 bg-blue-100 text-blue-600 text-xs rounded-lg font-bold" x-text="timer>0?timer:'发送'"></button></div><input type="password" x-model="form.newPassword" placeholder="新密码" class="w-full p-2.5 bg-blue-50 rounded-lg text-sm outline-none"><button @click="doReset" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold">确认</button><div class="text-center text-xs text-gray-500"><button @click="modalMode='login'">返回</button></div></div></div></div>
 
-    <script>
-        function app() {
-            return {
-                user: JSON.parse(localStorage.getItem('user') || 'null'),
-                token: localStorage.getItem('token') || '',
-                categories: [], resources: [], tags: [], 
-                viewMode: 'list', 
-                currentCat: null, currentTagType: null, currentTagId: null,
-                quota: {total:0, remaining:0}, unreadCount: 0,
-                modalMode: null, showCenter: false, detailItem: null,
-                form: { loginId:'', email:'', username:'', password:'', confirmPassword:'', code:'' },
-                searchQ: '', newComment: '', comments: [], timer:0, sortType: 'date-desc', showPwd: false,
-                page: 1, hasMore: true, isLoading: false,
-
-                get processedResources() {
-                    let list = this.resources.map(r => ({...r}));
-                    return list.sort((a, b) => {
-                        // 【核心修改】精准中文日期解析
-                        const parseCN = (str) => {
-                            if (!str) return 0;
-                            let y = 0, m = 1, d = 1;
-                            
-                            // 匹配 2025年12月8日, 2025.12.8, 20251208
-                            const full = str.match(/(\d{4})[^\d](\d{1,2})[^\d](\d{1,2})/);
-                            if (full) {
-                                y = parseInt(full[1]); m = parseInt(full[2]); d = parseInt(full[3]);
-                            } else {
-                                // 匹配 2025年12月, 2025.12
-                                const ym = str.match(/(\d{4})[^\d](\d{1,2})/);
-                                if (ym) {
-                                    y = parseInt(ym[1]); m = parseInt(ym[2]);
-                                } else {
-                                    // 匹配 2025年, 2025 (或 2003-2005)
-                                    const yOnly = str.match(/(\d{4})/);
-                                    if (yOnly) y = parseInt(yOnly[1]);
-                                }
-                            }
-                            if (y === 0) return 0;
-                            return new Date(y, m - 1, d).getTime();
-                        };
-
-                        const dateA = a.custom_date ? parseCN(a.custom_date) : new Date(a.created_at).getTime();
-                        const dateB = b.custom_date ? parseCN(b.custom_date) : new Date(b.created_at).getTime();
-
-                        if (this.sortType === 'date-desc') return dateB - dateA;
-                        if (this.sortType === 'date-asc') return dateA - dateB;
-                        if (this.sortType === 'title-asc') return a.title.localeCompare(b.title, 'zh');
-                        return 0;
-                    });
-                },
-                // ... 其他函数保持不变 ...
-                get isLocked() { if(!this.detailItem) return false; return this.detailItem.content.some(b => b.isLockedMask); },
-
-                async init() { 
-                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                    if (!isMobile) document.getElementById('pc-block-overlay').style.display = 'flex';
-                    if(this.token) this.refreshUser(); 
-                    this.doSearch(); 
-                    window.addEventListener('scroll', this.handleScroll.bind(this));
-                },
-                handleScroll() {
-                    const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-                    if (scrollTop + clientHeight >= scrollHeight - 100 && !this.isLoading && this.hasMore) {
-                        this.loadMore();
-                    }
-                },
-                async doSearch() { return this.fetchResources(true); },
-                resetAndSearch() { this.doSearch(); },
-                async loadMore() { this.page++; await this.fetchResources(false); },
-                async fetchResources(isReset) {
-                    this.isLoading = true;
-                    if(isReset) { this.page = 1; this.resources = []; this.hasMore = true; }
-                    let url = `/api/public/home?page=${this.page}&q=${this.searchQ}`;
-                    if(this.currentCat) url += `&catId=${this.currentCat}`; 
-                    if(this.currentTagId) url += `&tagId=${this.currentTagId}`; 
-                    try {
-                        const res = await fetch(url);
-                        const data = await res.json();
-                        if(this.page === 1) this.categories = data.categories;
-                        if(data.resources && data.resources.length > 0) {
-                            const newItems = data.resources.filter(n => !this.resources.find(o => o.id === n.id));
-                            this.resources = [...this.resources, ...newItems];
-                        }
-                        this.hasMore = data.hasMore;
-                    } catch(e) { console.error(e); }
-                    this.isLoading = false;
-                },
-                resetFilters() { this.currentCat = null; this.currentTagType = null; this.currentTagId = null; this.viewMode = 'list'; this.doSearch(); },
-                filterCat(id) { this.currentCat = id; this.currentTagType = null; this.currentTagId = null; this.viewMode = 'list'; this.doSearch(); },
-                async showTagWall(type) { this.currentTagType = type; this.currentCat = null; this.currentTagId = null; this.viewMode = 'tags'; const res = await fetch(`/api/public/tags?type=${type}`); this.tags = await res.json(); },
-                filterByTagId(id) { this.currentTagId = id; this.viewMode = 'list'; this.doSearch(); },
-                async refreshUser() { const res = await fetch('/api/user/info', { headers: {'Authorization': `Bearer ${this.token}`} }); if(res.ok) { const data = await res.json(); this.user = data.user; this.quota = data.quota; this.unreadCount = data.unread_count||0; localStorage.setItem('user', JSON.stringify(data.user)); } else this.logout(); },
-                showUserCenter() { location.href = '/user'; },
-                openModal(mode) { this.modalMode = mode; this.form = {loginId:'', email:'', username:'', password:'', confirmPassword:'', code:''}; this.showPwd=false; },
-                getCatName(id) { const c = this.categories.find(cat => cat.id == id); return c ? c.name : '未分类'; },
-                async sendCode(type) { if(!this.form.email) return alert('邮箱必填'); const res = await fetch('/api/auth/send-code', {method:'POST', body:JSON.stringify({email:this.form.email, type})}); if(res.ok){ alert('发送成功'); this.timer=60; setInterval(()=>this.timer>0&&this.timer--,1000); } else alert((await res.json()).error); },
-                async doRegister() { if(this.form.password !== this.form.confirmPassword) return alert('两次密码不一致'); const res = await fetch('/api/auth/register', {method:'POST', body:JSON.stringify(this.form)}); const data = await res.json(); if(res.ok) this.loginSuccess(data); else alert(data.error); },
-                async doLogin() { const res = await fetch('/api/auth/login', {method:'POST', body:JSON.stringify({...this.form, isAdmin:false})}); const data = await res.json(); if(res.ok) this.loginSuccess(data); else alert(data.error); },
-                async doReset() { const res = await fetch('/api/auth/reset-password', {method:'POST', body:JSON.stringify(this.form)}); if(res.ok) { alert('重置成功'); this.modalMode='login'; } else alert((await res.json()).error); },
-                loginSuccess(data) { this.user=data.user; this.token=data.token; localStorage.setItem('user', JSON.stringify(data.user)); localStorage.setItem('token', data.token); this.modalMode=null; this.refreshUser(); },
-                logout() { localStorage.clear(); location.reload(); },
-                async unlockAll(resourceId) { if(!this.user) return this.modalMode = 'login'; if(!confirm('消耗 1 把钥匙解锁全部?')) return; const res = await fetch('/api/resource/unlock', { method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId}) }); const data = await res.json(); if(res.ok) { const fullContent = data.fullContent; this.detailItem.content = this.detailItem.content.map((b, idx) => { if(b.isLockedMask) return { ...b, value: fullContent[idx].value, isLockedMask: false }; return b; }); this.refreshUser(); } else alert(data.error); },
-                async openDetail(item) { this.detailItem = JSON.parse(JSON.stringify(item)); const res = await fetch(`/api/resource/comments/${item.id}`); this.comments = await res.json(); },
-                async postComment(rid) { if(!this.user) return this.modalMode = 'login'; if(!this.newComment) return; await fetch('/api/resource/comment', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid, content:this.newComment})}); this.newComment = ''; this.openDetail(this.detailItem); },
-                async like(rid) { if(!this.user) return this.modalMode = 'login'; await fetch('/api/resource/like', {method:'POST', headers:{'Authorization':`Bearer ${this.token}`}, body:JSON.stringify({resourceId:rid})}); this.detailItem.like_count++; },
-            }
-        }
-    </script>
-</body>
-</html>
+    <!-- 登录/注册/重置模态框 -->
+    <div x-show="modalMode" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
+            <button @click="modalMode = null" class="absolute top
