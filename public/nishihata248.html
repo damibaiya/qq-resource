@@ -2,249 +2,272 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>蓝鲸中控台 Ultimate</title>
+    <title>蓝鲸后台管理</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta name="referrer" content="no-referrer">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
-    <script>
-        const SUPABASE_URL = 'https://toiggxduohuapmfnszcu.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvaWdneGR1b2h1YXBtZm5zemN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NzU5MDksImV4cCI6MjA4MTI1MTkwOX0.tSTWbyOcoKD9bx8-NjwG_KCktMcGlQZbbrGAP_0hXng';
-        const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        window.supabase = client;
-    </script>
-    <style>
-        [x-cloak] { display: none !important; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
-        .modal-body { max-height: 85vh; overflow-y: auto; }
-    </style>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
-<body class="bg-gray-100 text-slate-800 font-sans" x-data="admin()">
-
-    <!-- 登录页 -->
-    <div x-show="!isAdmin" class="min-h-screen flex items-center justify-center bg-slate-900">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-96 text-center">
-            <h1 class="font-bold mb-6 text-2xl text-slate-800">管理员登录</h1>
-            <input type="text" x-model="loginInput" placeholder="账号" class="w-full border p-3 mb-3 rounded-lg outline-none focus:border-blue-500">
-            <input type="password" x-model="password" placeholder="密码" class="w-full border p-3 mb-6 rounded-lg outline-none focus:border-blue-500">
-            <button @click="login" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition">登录</button>
-        </div>
+<body class="bg-gray-100" x-data="admin()">
+    <div x-show="!token" class="min-h-screen flex items-center justify-center">
+        <div class="bg-white p-8 rounded shadow w-96"><h1 class="font-bold mb-4">登录</h1><input type="text" x-model="loginForm.loginId" class="w-full border p-2 mb-2"><input type="password" x-model="loginForm.password" class="w-full border p-2 mb-4"><button @click="login" class="w-full bg-blue-600 text-white py-2 rounded">Login</button></div>
     </div>
 
-    <!-- 主界面 -->
-    <div x-show="isAdmin" class="min-h-screen flex" x-cloak>
-        <nav class="w-56 bg-slate-900 text-white flex flex-col fixed h-full z-20 shadow-xl">
-            <div class="p-6 font-bold text-xl border-b border-slate-800 flex items-center gap-2"><span>🐳</span> 中控台</div>
-            <div class="flex-1 py-4 space-y-1 overflow-y-auto">
-                <template x-for="item in menu" :key="item.id">
-                    <button @click="switchTab(item.id)" 
-                        :class="tab===item.id ? 'bg-blue-600 text-white border-r-4 border-blue-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'" 
-                        class="w-full text-left px-6 py-3.5 text-sm font-medium transition flex justify-between items-center group">
-                        <span x-text="item.label"></span>
-                        <span x-show="item.id==='msg' && unreadCount > 0" class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse" x-text="unreadCount"></span>
-                    </button>
-                </template>
-            </div>
-            <div class="p-4 border-t border-slate-800">
-                <button @click="logout" class="w-full py-2 text-center text-red-400 hover:bg-slate-800 rounded transition text-sm font-bold">退出</button>
+    <div x-show="token" class="min-h-screen flex flex-col h-screen" x-cloak>
+        <nav class="bg-slate-800 text-white p-4 shrink-0 flex justify-between items-center">
+            <span class="font-bold mr-4">🐋 蓝鲸管理</span>
+            <div class="space-x-1 text-sm flex items-center">
+                <!-- 恢复概览 -->
+                <button @click="switchTab('dash')" :class="tab==='dash'?'text-blue-300':''">概览</button>
+                <button @click="switchTab('users')" :class="tab==='users'?'text-blue-300':''">用户</button>
+                <button @click="switchTab('msgs')" :class="tab==='msgs'?'text-blue-300':''" class="relative">
+                    私信 <span x-show="totalUnread>0" class="absolute -top-1 -right-2 bg-red-500 text-[8px] px-1 rounded-full" x-text="totalUnread"></span>
+                </button>
+                <button @click="switchTab('list')" :class="tab==='list'?'text-blue-300':''">文章</button>
+                <button @click="switchTab('post')" :class="tab==='post'?'text-blue-300':''">发布</button>
+                <button @click="switchTab('tags')" :class="tab==='tags'?'text-blue-300':''">标签</button>
+                <button @click="switchTab('keywords')" :class="tab==='keywords'?'text-blue-300':''">关联</button>
+                <button @click="switchTab('cats')" :class="tab==='cats'?'text-blue-300':''">分类</button>
+                
+                <div class="w-px h-4 bg-slate-600 mx-2"></div>
+                <button @click="backupData" class="text-green-400">备份</button>
+                <button @click="triggerRestore" class="text-red-400 ml-2">恢复</button>
+                <button @click="fixDates" class="text-yellow-400 ml-2">修日期</button>
+                <button @click="logout" class="text-gray-400 ml-4">退出</button>
             </div>
         </nav>
 
-        <main class="flex-1 ml-56 p-8 bg-gray-100 min-h-screen">
-            <!-- 1. 概览 -->
-            <div x-show="tab==='dash'" class="space-y-6">
-                <h2 class="text-2xl font-bold mb-6">概览</h2>
-                <div class="grid grid-cols-4 gap-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100"><div class="text-slate-400 text-xs font-bold uppercase">总用户</div><div class="text-3xl font-black text-slate-800 mt-2" x-text="stats.users">0</div></div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100"><div class="text-slate-400 text-xs font-bold uppercase">总帖子</div><div class="text-3xl font-black text-blue-600 mt-2" x-text="stats.posts">0</div></div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 col-span-2"><div class="text-slate-400 text-xs font-bold uppercase">安全审计</div><div class="mt-2 text-sm text-slate-600 font-mono"><p>IP: <span x-text="stats.ip"></span></p><p class="truncate text-xs" x-text="navigator.userAgent"></p></div></div>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100"><h3 class="font-bold mb-4 text-lg">登录历史</h3><div class="overflow-hidden"><table class="w-full text-sm text-left"><thead class="bg-slate-50 text-slate-500 font-bold"><tr><th class="p-3">时间</th><th class="p-3">IP地址</th><th class="p-3">设备</th><th class="p-3">操作</th></tr></thead><tbody class="divide-y divide-slate-50"><template x-for="log in stats.logs"><tr class="hover:bg-slate-50"><td class="p-3 text-slate-600" x-text="new Date(log.created_at).toLocaleString()"></td><td class="p-3 font-mono text-xs text-blue-500" x-text="log.ip_address"></td><td class="p-3 text-xs text-slate-400 truncate max-w-[200px]" x-text="log.user_agent||'Unknown'"></td><td class="p-3 text-xs font-bold badge" x-text="log.action"></td></tr></template></tbody></table></div></div>
-            </div>
-
-            <!-- 2. 发布 -->
-            <div x-show="tab==='post'" class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-100">
-                <h2 class="text-2xl font-bold mb-6 text-blue-600">📝 发布资源</h2>
-                <div class="grid gap-5">
-                    <div><label class="block text-xs font-bold text-slate-500 mb-1">标题 (自动识别日期)</label><input type="text" x-model="post.title" @blur="autoParseDate('post')" class="w-full border p-3 rounded-lg bg-slate-50 outline-none focus:bg-white transition" placeholder="例如: [综艺]2018.01.05期"></div>
-                    <div class="grid grid-cols-2 gap-5"><div><label class="block text-xs font-bold text-slate-500 mb-1">分类</label><select x-model="post.category_id" class="w-full border p-3 rounded-lg bg-slate-50"><template x-for="c in categories" :key="c.id"><option :value="c.id" x-text="c.name"></option></template></select></div><div><label class="block text-xs font-bold text-slate-500 mb-1">日期</label><input type="text" x-model="post.custom_date" class="w-full border p-3 rounded-lg bg-slate-50"></div></div>
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100"><label class="block text-xs font-bold text-slate-500 mb-2">内容 <span class="text-red-500">*必须含链接</span></label><template x-for="(b,i) in post.blocks" :key="i"><div class="flex gap-2 mb-2 items-center bg-white p-2 rounded border border-slate-200"><select x-model="b.type" class="border p-1.5 rounded text-xs bg-slate-50 font-bold"><option value="text">文</option><option value="link">链</option><option value="image">图</option></select><input x-show="b.type!=='image'" type="text" x-model="b.value" class="flex-1 border p-1.5 rounded text-sm outline-none"><div x-show="b.type==='image'" class="flex-1 flex gap-2 items-center"><input type="file" @change="uploadImg($event,i,'post')" class="text-xs text-slate-500"><span x-show="b.value" class="text-green-500 text-xs font-bold">✅</span></div><div x-show="b.type==='link'" class="flex items-center gap-1 px-2 border-l"><input type="checkbox" x-model="b.locked"><span class="text-xs font-bold text-slate-500">锁</span></div><button @click="post.blocks.splice(i,1)" class="text-red-400 hover:text-red-600 p-1">✕</button></div></template><button @click="addBlock" class="mt-2 text-xs font-bold text-blue-600 border border-blue-200 bg-white px-3 py-1.5 rounded-lg hover:bg-blue-50">+ 添加一行</button></div>
-                    <div><label class="block text-xs font-bold text-slate-500 mb-2">标签</label><div class="flex gap-2 mb-3"><input type="text" x-model="newTag" placeholder="标签名" class="border p-2 rounded-lg w-40 text-sm outline-none"><select x-model="newTagType" class="border p-2 rounded-lg text-sm bg-white"><option value="番组">番组</option><option value="艺人">艺人</option></select><button @click="addPostTag('post')" class="bg-slate-800 text-white px-4 rounded-lg text-sm font-bold">添加</button></div><div class="flex gap-2 flex-wrap"><template x-for="(t,i) in post.tags"><span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><span x-text="t.name"></span><button @click="post.tags.splice(i,1)" class="text-blue-400 hover:text-blue-600 font-black">✕</button></span></template></div></div>
-                    <button @click="publish" class="bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 shadow-lg mt-2">🚀 立即发布</button>
-                </div>
-            </div>
-
-            <!-- 3. 文章列表 -->
-            <div x-show="tab==='list'">
-                <div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">文章列表</h2><div class="flex gap-3"><input type="text" x-model="resSearchQ" @keyup.enter="loadResources(0)" placeholder="搜标题..." class="border p-2 rounded text-sm w-64"><button @click="loadResources(0)" class="bg-blue-600 text-white px-4 rounded text-sm font-bold">搜索</button><button @click="batchDelete" class="bg-red-100 text-red-600 px-4 rounded text-sm font-bold">批量删除</button></div></div>
-                <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden"><table class="w-full text-sm text-left"><thead class="bg-slate-50 text-slate-500 font-bold"><tr><th class="p-4 w-10"><input type="checkbox" @click="toggleAllRes"></th><th class="p-4 w-16">ID</th><th class="p-4">标题</th><th class="p-4 w-24">日期</th><th class="p-4 w-20">分类</th><th class="p-4 w-32">操作</th></tr></thead><tbody class="divide-y divide-slate-50"><template x-for="r in resources" :key="r.id"><tr class="hover:bg-slate-50"><td class="p-4"><input type="checkbox" x-model="r.selected"></td><td class="p-4 text-slate-400" x-text="r.id"></td><td class="p-4 font-bold text-slate-700" x-text="r.title"></td><td class="p-4 text-slate-500 text-xs" x-text="r.custom_date"></td><td class="p-4"><span class="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600" x-text="getCatName(r.category_id)"></span></td><td class="p-4 flex gap-2"><button @click="openEditModal(r)" class="text-blue-500 font-bold text-xs hover:underline">编辑</button><button @click="delRes(r.id)" class="text-red-500 font-bold text-xs hover:underline">删除</button></td></tr></template></tbody></table><div class="p-4 border-t flex justify-between items-center bg-slate-50"><div class="text-xs text-slate-500">共 <span x-text="resTotal"></span> 条，<span x-text="resTotalPages"></span> 页</div><div class="flex items-center gap-2"><button @click="loadResources(resPage-1)" :disabled="resPage<=0" class="px-3 py-1 bg-white border rounded text-xs disabled:opacity-50">上一页</button><input type="number" x-model="jumpPage" class="w-12 text-center border rounded text-xs p-1" @keyup.enter="goToResPage"><button @click="goToResPage" class="px-2 py-1 bg-blue-600 text-white rounded text-xs">跳转</button><button @click="loadResources(resPage+1)" :disabled="resPage>=resTotalPages-1" class="px-3 py-1 bg-white border rounded text-xs disabled:opacity-50">下一页</button></div></div></div>
-            </div>
-
-            <!-- 4. 用户管理 -->
-            <div x-show="tab==='users'">
-                <h2 class="text-2xl font-bold mb-6">用户管理</h2>
-                <div class="flex gap-2 mb-4"><input x-model="userSearchQ" placeholder="搜邮箱/昵称..." class="border p-2 rounded flex-1"><button @click="loadUsers(0)" class="bg-blue-600 text-white px-4 rounded font-bold">搜索</button></div>
-                <div class="space-y-4"><template x-for="u in users"><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition"><div class="flex justify-between items-start mb-4"><div><div class="flex items-center gap-2"><div class="font-bold text-lg text-slate-800" x-text="u.username||u.email.split('@')[0]"></div></div><div class="text-xs text-slate-400 mt-1" x-text="u.email"></div><div class="text-xs text-slate-400 mt-1">注册: <span x-text="new Date(u.created_at).toLocaleDateString()"></span> | 连签: <span class="text-orange-600 font-bold" x-text="u.consecutive_days||0"></span> 天 | 钥匙: <span class="text-blue-600 font-bold" x-text="u.keys_count"></span></div></div><div class="text-right flex flex-col items-end"><div class="text-xs text-purple-600 font-bold bg-purple-50 px-2 py-1 rounded mb-2" x-show="u.override_key_count">🔒 特权生效中</div></div></div><div class="bg-slate-50 p-4 rounded-lg text-sm grid gap-4 border border-slate-100"><div class="flex justify-between items-center"><label class="font-bold text-slate-500 text-xs">普通修改</label><div class="flex gap-2"><input type="number" x-model="u.edit_keys" class="border p-1.5 rounded w-20 text-center bg-white"><button @click="saveUser(u)" class="bg-green-500 text-white px-3 rounded text-xs font-bold">保存</button></div></div><div class="border-t border-slate-200 pt-3 flex justify-between items-center"><label class="font-bold text-purple-600 text-xs">特权设定</label><button @click="openPrivilegeModal(u)" class="bg-purple-100 text-purple-600 px-3 py-1.5 rounded text-xs font-bold">设置特权</button></div><div class="border-t border-slate-200 pt-3 text-right"><button @click="openDM(u)" class="text-blue-500 font-bold text-xs border border-blue-200 px-4 py-1.5 rounded hover:bg-blue-50">发私信</button></div></div></div></template></div><div class="p-4 text-center"><button @click="loadUsers(userPage+1)" class="text-slate-400 text-xs hover:text-blue-500 font-bold">加载更多...</button></div>
-            </div>
-
-            <!-- 5. 关键词管理 -->
-            <div x-show="tab==='keywords'">
-                <h2 class="text-2xl font-bold mb-6">关键词管理</h2>
-                <div class="flex gap-3 mb-6"><input x-model="kwSearchQ" @keyup.enter="loadKeywords(0)" placeholder="搜关键词..." class="border p-2 rounded flex-1 shadow-sm"><button @click="loadKeywords(0)" class="bg-blue-600 text-white px-4 rounded font-bold">搜索</button><button @click="openAddKeyword" class="bg-green-600 text-white px-4 rounded font-bold">+ 添加关键词</button><button @click="batchDelKw" class="bg-red-100 text-red-600 px-4 rounded font-bold">删除选中</button></div>
-                <div class="bg-white rounded-xl shadow-sm overflow-hidden"><table class="w-full text-sm text-left"><thead class="bg-slate-50 font-bold text-slate-500"><tr><th class="p-4 w-10"><input type="checkbox" @click="toggleAllKw"></th><th class="p-4">关键词</th><th class="p-4">关联规则</th><th class="p-4 w-24">操作</th></tr></thead><tbody class="divide-y divide-slate-50"><template x-for="k in keywords"><tr class="hover:bg-slate-50"><td class="p-4"><input type="checkbox" x-model="k.selected"></td><td class="p-4 font-bold text-slate-700" x-text="k.keyword"></td><td class="p-4"><div class="flex flex-wrap gap-1"><template x-for="def in k.definitions"><span class="bg-purple-50 text-purple-600 px-2 py-0.5 rounded text-xs border border-purple-100" x-text="def.tag_name+' ('+def.tag_type+')'"></span></template></div></td><td class="p-4"><button @click="editKeyword(k)" class="text-blue-500 font-bold text-xs hover:underline mr-2">编辑</button></td></tr></template></tbody></table><div class="p-3 border-t flex justify-between items-center bg-slate-50"><span class="text-xs text-slate-500 font-bold" x-text="`共 ${kwTotal} 条，${kwPage+1} / ${kwTotalPages} 页`"></span><div class="flex gap-1"><button @click="loadKeywords(kwPage-1)" :disabled="kwPage<=0" class="px-2 bg-white border rounded disabled:opacity-50">‹</button><input type="number" x-model="jumpKwPage" class="w-10 text-center border rounded text-xs p-1" @keyup.enter="goToKwPage"><button @click="goToKwPage" class="px-2 bg-blue-100 text-blue-600 rounded text-xs">Go</button><button @click="loadKeywords(kwPage+1)" :disabled="kwPage>=kwTotalPages-1" class="px-2 bg-white border rounded disabled:opacity-50">›</button></div></div></div>
-            </div>
-
-            <!-- 6. 标签/分类/备份 -->
-            <div x-show="tab==='tags'"><h2 class="text-2xl font-bold mb-6">标签管理</h2><div class="flex gap-4 mb-4"><button @click="tagType='番组';loadAllTags()" :class="tagType==='番组'?'bg-blue-600 text-white':'bg-white'" class="px-4 py-2 rounded shadow">番组</button><button @click="tagType='艺人';loadAllTags()" :class="tagType==='艺人'?'bg-pink-600 text-white':'bg-white'" class="px-4 py-2 rounded shadow">艺人</button></div><div class="grid grid-cols-8 gap-3"><template x-for="t in allTags"><div class="bg-white p-2 rounded shadow text-center group relative cursor-pointer hover:shadow-md transition" @click="openEditTag(t)"><img :src="t.image_url||'https://ui-avatars.com/api/?name='+t.name" class="w-full aspect-square object-cover rounded mb-2"><div class="text-[10px] font-bold truncate" x-text="t.name"></div><button @click.stop="delTag(t.id)" class="absolute top-1 right-1 bg-red-500 text-white w-5 h-5 rounded-full text-[10px] hidden group-hover:block">×</button></div></template></div></div>
-            <div x-show="tab==='cats'"><h2 class="text-2xl font-bold mb-6">分类管理</h2><div class="flex gap-2 mb-4"><input x-model="newCatName" placeholder="新分类名称" class="border p-2 rounded shadow-sm"><button @click="addCat" class="bg-green-600 text-white px-4 rounded font-bold">添加</button></div><div class="space-y-2 max-w-md"><template x-for="c in categories"><div class="bg-white p-3 rounded flex justify-between border hover:bg-slate-50"><span x-text="c.name" class="font-bold"></span><button @click="delCat(c.id)" class="text-red-500 text-xs font-bold hover:underline">删除</button></div></template></div></div>
-            <div x-show="tab==='backup'"><h2 class="text-2xl font-bold mb-6">备份与恢复</h2><div class="grid grid-cols-2 gap-8"><div class="bg-white p-8 rounded-xl shadow-sm border text-center hover:shadow-md transition"><div class="text-4xl mb-4">📤</div><h3 class="font-bold text-lg mb-2">导出数据</h3><button @click="backupData" class="bg-green-600 text-white px-6 py-3 rounded-lg font-bold w-full hover:bg-green-700">下载 JSON 备份</button></div><div class="bg-white p-8 rounded-xl shadow-sm border text-center hover:shadow-md transition"><div class="text-4xl mb-4">📥</div><h3 class="font-bold text-lg mb-2">恢复数据</h3><input type="file" id="restoreFile" class="mb-4 block w-full text-xs text-slate-500"><button @click="restoreData" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold w-full hover:bg-blue-700">开始恢复</button></div></div></div>
-
-            <!-- 7. 私信中心 -->
-            <div x-show="tab==='msg'"><h2 class="text-2xl font-bold mb-6">私信中心</h2><div class="grid grid-cols-3 gap-4 h-[600px]"><div class="bg-white rounded-xl border overflow-y-auto"><template x-for="c in conversations"><div @click="activeChat=c;loadChatMsgs()" class="p-4 border-b hover:bg-slate-50 cursor-pointer transition" :class="activeChat?.user_id===c.user_id?'bg-blue-50 border-l-4 border-blue-500':''"><div class="flex justify-between"><div class="font-bold text-sm text-slate-800" x-text="c.username || '未知'"></div><div x-show="!c.read" class="w-2 h-2 bg-red-500 rounded-full"></div></div><div class="text-xs text-slate-400 truncate mt-1" x-text="c.last_msg"></div></div></template></div><template x-if="activeChat"><div class="col-span-2 bg-white rounded-xl border flex flex-col"><div class="p-4 border-b font-bold bg-slate-50 text-slate-700" x-text="'与 '+(activeChat.username||'用户')+' 对话'"></div><div class="flex-1 overflow-y-auto p-4 space-y-4" id="admChatBox"><template x-for="m in chatMsgs"><div class="flex flex-col" :class="m.sender==='admin'?'items-end':'items-start'"><div class="max-w-[80%] p-3 rounded-2xl text-sm shadow-sm" :class="m.sender==='admin'?'bg-blue-600 text-white rounded-br-none':'bg-slate-100 text-slate-800 rounded-bl-none'"><span x-text="m.content"></span></div><span class="text-[10px] text-slate-300 mt-1" x-text="new Date(m.created_at).toLocaleString()"></span></div></template></div><div class="p-4 border-t flex gap-3"><input type="text" x-model="chatInput" class="flex-1 border p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-blue-200" @keyup.enter="sendAdmMsg" placeholder="输入回复..."><button @click="sendAdmMsg" class="bg-blue-600 text-white px-6 rounded-lg font-bold hover:bg-blue-700 transition">发送</button></div></div></template><template x-if="!activeChat"><div class="col-span-2 flex items-center justify-center text-gray-400 font-bold">请选择一个对话</div></template></div></div>
+        <main class="flex-1 overflow-hidden p-6">
             
-            <!-- 8. 关联管理 -->
-            <div x-show="tab==='assoc'"><h2 class="text-2xl font-bold mb-6">关联管理</h2><div class="flex gap-3 mb-6"><input x-model="assocSearch" @keyup.enter="loadAssoc(0)" placeholder="搜帖子或标签..." class="border p-2 rounded flex-1"><button @click="loadAssoc(0)" class="bg-blue-600 text-white px-4 rounded font-bold">搜索</button><button @click="openAddAssoc" class="bg-green-600 text-white px-4 rounded font-bold">+ 添加关联</button><button @click="batchDelAssoc" class="bg-red-100 text-red-600 px-4 rounded font-bold">批量解除</button></div><div class="bg-white rounded-xl shadow-sm overflow-hidden"><table class="w-full text-sm text-left"><thead class="bg-slate-50 font-bold text-slate-500"><tr><th class="p-3 w-10"><input type="checkbox" @click="toggleAllAssoc"></th><th class="p-3">帖子</th><th class="p-3">标签</th><th class="p-3">类型</th><th class="p-3">操作</th></tr></thead><tbody class="divide-y divide-slate-50"><template x-for="a in assocs"><tr class="hover:bg-slate-50"><td class="p-3"><input type="checkbox" x-model="a.selected"></td><td class="p-3 font-bold text-slate-700" x-text="a.resource_title"></td><td class="p-3"><span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs" x-text="a.tag_name"></span></td><td class="p-3 text-xs text-slate-400" x-text="a.tag_type"></td><td class="p-3"><button @click="delAssoc(a)" class="text-red-500 text-xs font-bold">解除</button></td></tr></template></tbody></table><div class="p-3 border-t flex justify-between items-center bg-slate-50"><span class="text-xs text-slate-500" x-text="`第 ${assocPage+1} 页`"></span><div class="flex gap-1"><button @click="loadAssoc(assocPage-1)" :disabled="assocPage<=0" class="px-2 bg-white border rounded">‹</button><input type="number" x-model="jumpAssocPage" class="w-10 text-center border rounded text-xs p-1" @keyup.enter="goToAssocPage"><button @click="goToAssocPage" class="px-2 bg-blue-100 text-blue-600 rounded text-xs">Go</button><button @click="loadAssoc(assocPage+1)" :disabled="assocs.length<50" class="px-2 bg-white border rounded">›</button></div></div></div></div>
+            <!-- 0. 概览 (恢复并精简：只保留安全审计) -->
+            <div x-show="tab === 'dash'" class="h-full overflow-y-auto">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden max-w-4xl mx-auto mt-4">
+                    <div class="p-4 border-b bg-gray-50 font-bold text-gray-700 flex justify-between items-center">
+                        <span>🔐 安全审计</span>
+                        <button @click="loadDashboard" class="text-xs text-blue-500">刷新</button>
+                    </div>
+                    <div class="p-6">
+                        <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100 text-sm text-blue-800 flex items-center gap-3">
+                            <span class="text-2xl">👋</span>
+                            <div>
+                                <div><strong>当前会话：</strong> <span x-text="adminLogs[0] ? parseUA(adminLogs[0].ua) : '未知设备'"></span></div>
+                                <div class="text-xs text-blue-600 mt-1">IP: <span x-text="adminLogs[0]?.ip"></span></div>
+                            </div>
+                        </div>
+                        
+                        <h3 class="font-bold text-sm text-gray-500 mb-3 border-l-4 border-slate-400 pl-2">最近登录历史</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 text-gray-500">
+                                    <tr><th class="p-3">时间</th><th>IP地址</th><th>设备信息</th></tr>
+                                </thead>
+                                <tbody class="divide-y">
+                                    <template x-for="log in adminLogs" :key="log.id">
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="p-3 whitespace-nowrap" x-text="new Date(log.created_at).toLocaleString()"></td>
+                                            <td class="p-3 font-mono text-xs" x-text="log.ip"></td>
+                                            <td class="p-3 text-gray-600 text-xs truncate max-w-xs" x-text="parseUA(log.ua)"></td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="adminLogs.length===0"><td colspan="3" class="p-4 text-center text-gray-400">暂无记录</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1. 用户管理 (检查此处) -->
+            <div x-show="tab === 'users'" class="bg-white p-6 rounded shadow h-full overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex gap-2">
+                        <button @click="loadUsers" class="text-sm text-blue-500 border px-2 rounded hover:bg-blue-50">🔄 刷新列表</button>
+                        <button @click="showBlacklist=true; loadBlacklist()" class="text-xs bg-gray-800 text-white px-3 py-1 rounded hover:bg-black">黑名单管理</button>
+                    </div>
+                    <div class="flex gap-2" x-show="selectedUsers.length>0">
+                        <button @click="batchAction('mute')" class="bg-yellow-100 text-yellow-700 text-xs px-2 rounded">🔇 禁言</button>
+                        <button @click="batchAction('unmute')" class="bg-green-100 text-green-700 text-xs px-2 rounded">🔊 解禁</button>
+                        <button @click="batchAction('delete')" class="bg-red-100 text-red-700 text-xs px-2 rounded">🗑️ 删除</button>
+                        <button @click="batchAction('ban')" class="bg-black text-white text-xs px-2 rounded">⛔ 永久拉黑</button>
+                    </div>
+                </div>
+                
+                <table class="w-full text-sm text-left border">
+                    <thead class="bg-gray-50 text-gray-600">
+                        <tr>
+                            <th class="p-3 w-10"><input type="checkbox" @change="toggleAll($event)"></th>
+                            <th class="p-3">ID</th>
+                            <th class="p-3">用户</th>
+                            <th class="p-3">邮箱</th>
+                            <th class="p-3 text-center">连续签到</th>
+                            <th class="p-3">状态</th>
+                            <th class="p-3">钥匙</th>
+                            <th class="p-3">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <template x-for="u in users" :key="u.id">
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="p-3"><input type="checkbox" :value="u.id" x-model="selectedUsers"></td>
+                                <td class="p-3 text-gray-400" x-text="u.id"></td>
+                                <td class="p-3 font-bold" x-text="u.username"></td>
+                                <td class="p-3" x-text="u.email"></td>
+                                <td class="p-3 text-center">
+                                    <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-mono" x-text="(u.consecutive_days||0) + ' 天'"></span>
+                                </td>
+                                <td class="p-3">
+                                    <span x-show="u.is_muted" class="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs">禁言中</span>
+                                    <span x-show="!u.is_muted" class="text-green-500 text-xs">正常</span>
+                                </td>
+                                <td class="p-3 font-mono" x-text="(u.daily_limit||1)"></td>
+                                <td class="p-3 space-x-2">
+                                    <button @click="editQuota(u)" class="text-blue-600 hover:underline text-xs">改钥匙</button>
+                                    <button @click="jumpToChat(u)" class="text-green-600 hover:underline text-xs">发私信</button>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="users.length === 0">
+                            <td colspan="8" class="p-8 text-center text-gray-400">
+                                暂无用户 (管理员账号不在此显示)<br>请尝试注册一个普通用户进行测试
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <!-- 黑名单弹窗 -->
+                <div x-show="showBlacklist" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded w-96 max-h-[80vh] overflow-y-auto"><div class="flex justify-between mb-4"><h3 class="font-bold">黑名单</h3><button @click="showBlacklist=false">✕</button></div><div class="space-y-2"><template x-for="b in blacklist" :key="b.email"><div class="flex justify-between bg-gray-50 p-2 rounded text-xs"><span x-text="b.email"></span><button @click="unban(b.email)" class="text-red-500">解封</button></div></template><div x-show="blacklist.length===0" class="text-center text-gray-400 text-xs">无数据</div></div></div></div>
+            </div>
+
+            <!-- 其他模块 (保持不变，省略以节省篇幅) -->
+            <!-- 2. 发布/编辑 -->
+            <div x-show="tab === 'post'" class="bg-white p-6 rounded shadow h-full overflow-y-auto"><div class="space-y-4 max-w-4xl mx-auto"><h2 class="text-lg font-bold" x-text="isEdit?'修改':'发布'"></h2><input type="text" x-model="post.title" placeholder="标题" class="w-full border p-2 rounded"><div class="flex gap-4"><select x-model="post.category_id" class="border p-2 rounded flex-1"><option value="">分类...</option><template x-for="c in categories" :key="c.id"><option :value="c.id" x-text="c.name"></option></template></select><input type="text" x-model="post.manualDate" placeholder="日期" class="border p-2 rounded flex-1"></div><div class="border p-4 rounded bg-blue-50"><h3 class="text-sm font-bold text-gray-700 mb-2">🏷️ 标签 (自动关联)</h3><div class="space-y-2"><template x-for="(t, idx) in post.tags" :key="idx"><div class="flex gap-2 items-center bg-white p-2 rounded border"><select x-model="t.type" class="border p-1 rounded text-xs"><option value="番组">番组</option><option value="艺人">艺人</option></select><input type="text" x-model="t.name" @blur="autoFillTagImg(idx)" placeholder="标签名" class="border p-1 rounded text-sm flex-1"><input type="text" x-model="t.image_url" placeholder="图片URL" class="border p-1 rounded text-xs w-1/3"><button @click="post.tags.splice(idx,1)" class="text-red-500">✕</button></div></template><button @click="post.tags.push({type:'番组',name:'',image_url:''})" class="text-xs bg-blue-200 px-2 rounded">+标签</button></div></div><div class="border rounded p-4 bg-gray-50 space-y-2"><template x-for="(block, idx) in post.blocks" :key="idx"><div class="flex gap-2 items-center bg-white p-2 rounded border"><span x-text="idx+1" class="text-xs text-gray-400"></span><select x-model="block.type" class="border text-sm p-1 rounded"><option value="text">文本</option><option value="link">链接</option><option value="image">图片</option></select><div class="flex-1 space-y-1"><input type="text" x-model="block.value" class="w-full border p-1 rounded text-sm"><div x-show="block.type==='link'" class="flex gap-2 text-xs"><select x-model="block.linkType" class="border p-1 rounded"><option value="夸克">夸克</option><option value="百度">百度</option><option value="其他">其他</option></select><input x-show="block.linkType==='其他'" type="text" x-model="block.customLinkType" placeholder="类型" class="border p-1 rounded w-20"></div><input x-show="block.type==='image'" type="file" @change="uploadImg($event, idx)" class="text-xs"></div><label class="flex items-center gap-1 text-xs bg-gray-100 p-1 rounded"><input type="checkbox" x-model="block.locked">🔒</label><button @click="post.blocks.splice(idx,1)" class="text-red-500">✕</button></div></template><div class="flex gap-2"><button @click="addBlock('text')" class="text-xs bg-gray-200 px-2 rounded">+文</button><button @click="addBlock('link')" class="text-xs bg-gray-200 px-2 rounded">+链</button><button @click="addBlock('image')" class="text-xs bg-gray-200 px-2 rounded">+图</button></div></div><button @click="publish" class="w-full bg-blue-600 text-white py-2 rounded">提交 (至少一条链接)</button></div></div>
+            <!-- 3. 文章列表 -->
+            <div x-show="tab === 'list'" class="bg-white p-6 rounded shadow h-full overflow-y-auto"><div class="flex justify-between items-center mb-4"><div class="flex gap-2"><select x-model="filterCatId" @change="page=1;loadResources()" class="border p-2 rounded"><option value="">全部分类</option><template x-for="c in categories" :key="c.id"><option :value="c.id" x-text="c.name"></option></template></select><input type="text" x-model="searchQ" class="border p-2 rounded w-40" placeholder="搜标题"><button @click="page=1;loadResources()" class="bg-blue-600 text-white px-4 rounded">搜</button></div><div class="flex gap-2"><button @click="deduplicate" class="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition">🧹 一键去重</button><button x-show="selectedPosts.length > 0" @click="batchDeletePosts" class="bg-red-500 text-white px-3 py-1 rounded text-sm">批量删除 (<span x-text="selectedPosts.length"></span>)</button></div></div><table class="w-full text-sm text-left"><thead class="bg-gray-50"><tr><th class="p-3"><input type="checkbox" @change="toggleAllPosts($event)"></th><th>ID</th><th>标题</th><th>分类</th><th>日期</th><th>操作</th></tr></thead><tbody><template x-for="r in resourceList" :key="r.id"><tr class="border-b"><td class="p-3"><input type="checkbox" :value="r.id" x-model="selectedPosts"></td><td class="p-2" x-text="r.id"></td><td x-text="r.title"></td><td x-text="getCatName(r.category_id)"></td><td x-text="r.custom_date"></td><td><button @click="editResource(r.id)" class="text-blue-600 mr-2">改</button><button @click="delResource(r.id)" class="text-red-600">删</button></td></tr></template></tbody></table><div class="flex justify-center gap-4 mt-4 text-sm items-center"><button @click="prevPage" :disabled="page===1" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">上一页</button><span>第 <span x-text="page"></span> 页</span><button @click="nextPage" class="px-3 py-1 bg-gray-200 rounded">下一页</button></div></div>
+            <!-- 4. 标签管理 -->
+            <div x-show="tab === 'tags'" class="bg-white p-6 rounded shadow h-full overflow-y-auto"><div x-show="editingTag" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded"><h3 class="font-bold text-yellow-700 mb-2">✏️ 编辑标签</h3><div class="flex gap-2 items-center mb-2"><select x-model="editingTag.type" class="border p-2 rounded text-sm"><option value="番组">番组</option><option value="艺人">艺人</option></select><input type="text" x-model="editingTag.name" class="border p-2 rounded text-sm flex-1"><input type="text" x-model="editingTag.image_url" class="border p-2 rounded text-sm flex-1"><div class="relative"><input type="file" @change="uploadTagImg" class="absolute inset-0 opacity-0 cursor-pointer"><button class="bg-gray-200 px-3 py-2 rounded text-sm border">上传图</button></div></div><div class="flex gap-2"><button @click="updateTag" class="bg-blue-600 text-white px-4 py-1 rounded text-sm">保存</button><button @click="editingTag=null; tagPosts=[]" class="text-gray-500 text-sm">取消</button></div></div><div class="flex justify-between items-center mb-6"><h2 class="text-lg font-bold">标签列表</h2></div><div class="mb-6"><h3 class="font-bold text-purple-600 mb-2">📺 番组标签</h3><div class="flex flex-wrap gap-3"><template x-for="t in allTags.filter(x=>x.type==='番组')" :key="t.id"><div @click="loadTagPosts(t)" class="border p-2 rounded cursor-pointer hover:bg-purple-50 flex items-center gap-2" :class="editingTag?.id===t.id?'ring-2 ring-purple-300':''"><img :src="t.image_url||'https://via.placeholder.com/30'" class="w-8 h-8 rounded object-cover"><div><div class="font-bold text-sm" x-text="t.name"></div><div class="text-[10px] text-gray-400" x-text="t.post_count+' 帖'"></div></div></div></template></div></div><div class="mb-6"><h3 class="font-bold text-pink-600 mb-2">🎤 艺人标签</h3><div class="flex flex-wrap gap-3"><template x-for="t in allTags.filter(x=>x.type==='艺人')" :key="t.id"><div @click="loadTagPosts(t)" class="border p-2 rounded cursor-pointer hover:bg-pink-50 flex items-center gap-2" :class="editingTag?.id===t.id?'ring-2 ring-pink-300':''"><img :src="t.image_url||'https://via.placeholder.com/30'" class="w-8 h-8 rounded object-cover"><div><div class="font-bold text-sm" x-text="t.name"></div><div class="text-[10px] text-gray-400" x-text="t.post_count+' 帖'"></div></div></div></template></div></div><div x-show="tagPosts.length > 0" class="border-t pt-4"><h3 class="font-bold mb-2">关联帖子:</h3><table class="w-full text-sm text-left"><thead class="bg-gray-50"><tr><th>ID</th><th>标题</th><th>操作</th></tr></thead><tbody><template x-for="r in tagPosts" :key="r.id"><tr class="border-b"><td class="p-2" x-text="r.id"></td><td x-text="r.title"></td><td><button @click="editResource(r.id)" class="text-blue-600">修改</button></td></tr></template></tbody></table></div></div>
+            <!-- 5. 自动关联 -->
+            <div x-show="tab === 'keywords'" class="bg-white p-6 rounded shadow h-full overflow-y-auto"><h2 class="text-lg font-bold mb-4">自动关联规则</h2><div class="flex gap-2 mb-4 p-4 bg-gray-50 rounded"><input type="text" x-model="newKw.keyword" placeholder="关键词" class="border p-2 rounded text-sm"><input type="text" x-model="newKw.tagName" placeholder="标签名" class="border p-2 rounded text-sm"><select x-model="newKw.tagType" class="border p-2 rounded text-sm"><option value="艺人">艺人</option><option value="番组">番组</option></select><button @click="addKeyword" class="bg-green-600 text-white px-4 rounded text-sm">添加</button></div><table class="w-full text-sm text-left"><thead class="bg-gray-50"><tr><th>关键词</th><th>自动关联标签</th><th>操作</th></tr></thead><tbody><template x-for="k in keywords" :key="k.id"><tr class="border-b"><td class="p-3 font-bold" x-text="k.keyword"></td><td x-text="k.tag_name + ' (' + k.tag_type + ')'"></td><td><button @click="delKeyword(k.id)" class="text-red-500">删</button></td></tr></template></tbody></table></div>
+            <!-- 6. 私信 -->
+            <div x-show="tab === 'msgs'" class="bg-white rounded shadow h-full flex overflow-hidden border"><div class="w-64 border-r flex flex-col bg-gray-50"><div class="p-3 border-b font-bold bg-white flex justify-between"><span>私信列表</span><button @click="loadInbox" class="text-xs text-blue-500">刷新</button></div><div class="flex-1 overflow-y-auto"><template x-for="u in inboxList" :key="u.id"><div @click="selectChat(u)" class="p-3 border-b cursor-pointer hover:bg-blue-100 relative" :class="activeChatUser?.id===u.id?'bg-blue-200':''"><div class="font-bold text-xs" x-text="u.username"></div><div class="text-[10px] text-gray-500 truncate" x-text="u.last_msg || '点击开始对话'"></div><div x-show="u.unread>0" class="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full"></div></div></template></div></div><div class="flex-1 flex flex-col bg-white"><div x-show="activeChatUser" class="flex-1 flex flex-col h-full relative"><div class="p-3 border-b bg-gray-50 font-bold" x-text="activeChatUser?.username"></div><div class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50" id="adminChatContainer"><template x-for="msg in currentChatMsgs" :key="msg.id"><div class="flex flex-col" :class="msg.sender==='admin'?'items-end':'items-start'"><div class="max-w-[80%] p-2 rounded text-xs" :class="msg.sender==='admin'?'bg-blue-600 text-white':'bg-white border'"><div x-text="msg.content"></div></div></div></template></div><div class="p-3 bg-white border-t flex gap-2"><input type="text" x-model="replyContent" @keyup.enter="sendReply" class="flex-1 border p-2 rounded text-sm outline-none"><button @click="sendReply" class="bg-blue-600 text-white px-4 rounded text-sm">发</button></div></div><div x-show="!activeChatUser" class="flex-1 flex items-center justify-center text-gray-400">请选择左侧用户</div></div></div>
+            <!-- 7. 分类 -->
+            <div x-show="tab === 'cats'" class="bg-white p-6 rounded shadow max-w-lg mx-auto mt-10"><div class="flex gap-2 mb-4"><input type="text" x-model="newCat" class="border p-2 flex-1 rounded"><button @click="manageCat('add')" class="bg-green-500 text-white px-4 rounded">添加</button></div><div class="space-y-2"><template x-for="c in categories" :key="c.id"><div class="flex justify-between border p-2 rounded"><span x-text="c.name"></span><button @click="manageCat('del', c.id)" class="text-red-500">删</button></div></template></div></div>
         </main>
+        
+        <input type="file" id="restoreInput" style="display:none" @change="handleRestore">
     </div>
 
-    <!-- 弹窗：编辑文章 -->
-    <div x-show="editModal" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded-xl w-[800px] modal-body shadow-2xl"><h3 class="font-bold mb-4 text-lg">编辑文章</h3><div class="grid gap-4"><div><label class="text-xs font-bold text-gray-500">标题</label><input x-model="editPostData.title" @blur="autoParseDate('edit')" class="w-full border p-2 rounded"></div><div class="grid grid-cols-2 gap-4"><div><label class="text-xs font-bold text-gray-500">分类</label><select x-model="editPostData.category_id" class="w-full border p-2 rounded"><template x-for="c in categories"><option :value="c.id" x-text="c.name"></option></template></select></div><div><label class="text-xs font-bold text-gray-500">日期</label><input x-model="editPostData.custom_date" class="w-full border p-2 rounded"></div></div><div><label class="text-xs font-bold text-gray-500">标签管理</label><div class="flex gap-2 mb-2"><input x-model="newTag" placeholder="新标签名" class="border p-1 rounded text-sm w-32"><select x-model="newTagType" class="border text-sm p-1"><option value="番组">番组</option><option value="艺人">艺人</option></select><button @click="addPostTag('edit')" class="bg-blue-600 text-white px-3 rounded text-xs font-bold">添加</button></div><div class="flex gap-2 flex-wrap bg-gray-50 p-2 rounded"><template x-for="(t,i) in editPostData.tags"><span class="bg-white border border-blue-200 text-blue-800 px-2 py-1 rounded text-xs flex items-center gap-1 shadow-sm"><span x-text="t.name"></span><button @click="editPostData.tags.splice(i,1)" class="text-red-400 hover:text-red-600 font-bold ml-1">×</button></span></template></div></div><div class="bg-gray-50 p-3 rounded"><label class="text-xs font-bold text-gray-500 mb-2">内容</label><template x-for="(b,i) in editPostData.blocks" :key="i"><div class="flex gap-2 mb-2"><select x-model="b.type" class="border text-xs"><option value="text">文</option><option value="link">链</option><option value="image">图</option></select><input x-show="b.type!=='image'" type="text" x-model="b.value" class="flex-1 border p-1 text-sm"><div x-show="b.type==='image'" class="flex-1 flex gap-2"><input type="file" @change="uploadImg($event,i,'edit')" class="text-xs"><span x-show="b.value" class="text-green-500 text-xs">OK</span></div><div x-show="b.type==='link'" class="flex items-center gap-1"><input type="checkbox" x-model="b.locked"><span class="text-xs">锁</span></div><button @click="editPostData.blocks.splice(i,1)" class="text-red-500">×</button></div></template><button @click="editPostData.blocks.push({type:'text',value:'',locked:true})" class="text-xs bg-white border px-2 py-1 rounded">+ 添加</button></div><div class="flex justify-end gap-2 mt-4"><button @click="editModal=false" class="px-4 py-2 bg-gray-100 rounded">取消</button><button @click="saveEditPost" class="px-4 py-2 bg-blue-600 text-white rounded font-bold">保存修改</button></div></div></div></div>
-    <!-- 弹窗：编辑标签 -->
-    <div x-show="tagModal" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded-xl w-[600px] modal-body shadow-2xl"><h3 class="font-bold mb-4 text-lg border-b pb-2">编辑标签与帖子</h3><div class="flex gap-2 mb-4"><input x-model="editTagData.name" class="w-1/3 border p-2 rounded text-sm" placeholder="标签名"><select x-model="editTagData.type" class="w-1/4 border p-2 rounded text-sm"><option value="番组">番组</option><option value="艺人">艺人</option></select><input x-model="editTagData.image_url" class="flex-1 border p-2 rounded text-sm" placeholder="图片URL"><button @click="saveEditTag" class="px-3 bg-blue-600 text-white rounded text-sm">保存</button></div><h4 class="font-bold text-xs text-gray-500 mb-2">该标签下的帖子</h4><div class="bg-gray-50 rounded border h-64 overflow-y-auto p-2"><template x-for="p in tagPosts"><div class="flex justify-between items-center border-b p-2 hover:bg-white text-sm"><span class="truncate w-3/4 font-bold" x-text="p.title"></span><span class="text-xs text-gray-400" x-text="p.custom_date"></span></div></template><div x-show="tagPosts.length===0" class="text-center text-xs text-gray-400 mt-10">暂无帖子</div></div><div class="flex justify-end mt-4"><button @click="tagModal=false" class="px-4 py-2 bg-gray-100 rounded text-sm font-bold">关闭</button></div></div></div>
-    <!-- 特权弹窗 -->
-    <div x-show="privModal" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded-xl w-96 shadow-2xl"><h3 class="font-bold mb-4">设置特权</h3><div class="mb-3"><label class="block text-xs font-bold text-gray-500">锁定钥匙数量</label><input type="number" x-model="privData.count" class="w-full border p-2 rounded bg-gray-50 font-bold text-center"></div><div class="mb-4"><label class="block text-xs font-bold text-gray-500">日期范围</label><div class="flex gap-2"><input type="date" x-model="privData.start" class="border p-2 rounded w-full text-xs"><input type="date" x-model="privData.end" class="border p-2 rounded w-full text-xs"></div></div><div class="flex justify-end gap-2"><button @click="privModal=false" class="px-4 py-2 bg-gray-100 rounded">取消</button><button @click="savePrivilege" class="px-4 py-2 bg-purple-600 text-white rounded font-bold">保存</button></div></div></div>
-    <!-- 关键词弹窗 -->
-    <div x-show="kwModal" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded-xl w-[500px] modal-body shadow-2xl"><h3 class="font-bold mb-4 text-lg">编辑/添加关键词</h3><div class="mb-4"><label class="block text-xs font-bold text-gray-500 mb-1">关键词</label><input x-model="editKwData.keyword" class="w-full border p-2 rounded bg-blue-50 font-bold" placeholder="例如: VS岚"></div><div class="mb-4"><label class="block text-xs font-bold text-gray-500 mb-1">关联的标签规则</label><div class="flex flex-wrap gap-2 min-h-[40px] bg-gray-50 p-2 rounded border"><template x-for="(t, i) in editKwData.tags"><span class="bg-white border px-2 py-1 rounded text-xs flex items-center gap-1 shadow-sm"><span x-text="t.name+' ('+t.type+')'"></span><button @click="editKwData.tags.splice(i,1)" class="text-red-500 font-bold">×</button></span></template><span x-show="editKwData.tags.length===0" class="text-xs text-gray-400">暂无规则</span></div></div><div class="mb-4 bg-slate-50 p-3 rounded border"><label class="block text-xs font-bold text-gray-500 mb-2">添加规则 (直接输入)</label><div class="flex gap-2"><input x-model="kwNewTagName" placeholder="标签名" class="flex-1 border p-1 rounded text-sm"><select x-model="kwNewTagType" class="border p-1 rounded text-sm"><option value="番组">番组</option><option value="艺人">艺人</option></select><button @click="addRuleToKw" class="bg-blue-600 text-white px-3 rounded text-xs">添加</button></div></div><div class="flex justify-end gap-2"><button @click="kwModal=false" class="px-4 py-2 bg-gray-100 rounded">取消</button><button @click="saveKeyword" class="px-4 py-2 bg-green-600 text-white rounded font-bold">保存</button></div></div></div>
-    <!-- 关联弹窗 -->
-    <div x-show="assocModal" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div class="bg-white p-6 rounded-xl w-96 shadow-2xl"><h3 class="font-bold mb-4">手动关联帖子与标签</h3><div class="mb-3"><label class="block text-xs font-bold text-gray-500 mb-1">帖子ID</label><input type="number" x-model="newAssocData.resource_id" placeholder="ID" class="w-full border p-2 rounded"></div><div class="mb-4"><label class="block text-xs font-bold text-gray-500 mb-1">标签</label><div class="flex gap-2"><input x-model="newAssocData.tag_name" placeholder="名称" class="flex-1 border p-2 rounded"><select x-model="newAssocData.tag_type" class="border p-2 rounded text-sm"><option value="番组">番组</option><option value="艺人">艺人</option></select></div></div><div class="flex justify-end gap-2"><button @click="assocModal=false" class="px-4 py-2 bg-gray-100 rounded">取消</button><button @click="saveAssoc" class="px-4 py-2 bg-green-600 text-white rounded font-bold">关联</button></div></div></div>
-
     <script>
-        function admin(){return{
-            isAdmin:false,user:null,tab:'dash',loginInput:'',password:'',
-            menu:[{id:'dash',label:'概览'},{id:'post',label:'发布'},{id:'list',label:'文章'},{id:'users',label:'用户'},{id:'keywords',label:'关键词'},{id:'assoc',label:'关联'},{id:'msg',label:'私信'},{id:'tags',label:'标签'},{id:'cats',label:'分类'},{id:'backup',label:'备份'}],
-            stats:{users:0,posts:0,ip:'...',logs:[]},unreadCount:0,
-            post:{title:'',category_id:null,custom_date:'',blocks:[{type:'link',value:'',locked:true}],tags:[]},newTag:'',newTagType:'番组',categories:[],
-            resources:[],resPage:0,resTotal:0,resTotalPages:0,jumpPage:1,resSearchQ:'',
-            users:[],userPage:0,userSearchQ:'',
-            conversations:[],activeChat:null,chatMsgs:[],chatInput:'',
-            allTags:[],tagType:'番组',newCatName:'',
-            keywords:[], kwPage:0, kwTotal:0, kwTotalPages:0, jumpKwPage:1, kwSearchQ:'', kwModal:false, editKwData:{tags:[]}, kwNewTagName:'', kwNewTagType:'番组',
-            tagModal:false, editTagData:{}, tagPosts:[],
-            assocModal:false, newAssocData:{resource_id:'',tag_name:'',tag_type:'番组'}, assocs:[], assocSearch:'', assocPage:0, assocTotal:0, assocTotalPages:0, jumpAssocPage:1,
-            editModal:false,editPostData:{blocks:[],tags:[]},privModal:false,privData:{},
+        function admin() {
+            return {
+                token: localStorage.getItem('adm_token') || '', tab: 'dash', isEdit: false,
+                loginForm: { loginId: '', password: '' }, categories: [], resourceList: [], users: [], blacklist: [], searchQ: '', filterCatId: '',
+                post: { id: null, title: '', category_id: 3, blocks: [], manualDate: '', tags: [] },
+                newCat: '', allTags: [], tagPosts: [], editingTag: null, keywords: [], newKw: {keyword:'', tagName:'', tagType:'艺人'},
+                inboxList: [], activeChatUser: null, currentChatMsgs: [], replyContent: '', selectedUsers: [], selectedPosts: [], showBlacklist: false,
+                totalUnread: 0, page: 1, adminLogs: [],
 
-            async init(){const{data}=await window.supabase.auth.getSession();if(data.session)await this.check(data.session.user.id);this.getIP()},
-            async getIP(){try{const r=await fetch('https://api.ipify.org?format=json');const j=await r.json();this.stats.ip=j.ip;if(this.isAdmin)this.logLogin()}catch(e){this.stats.ip='Unknown';if(this.isAdmin)this.logLogin()}},
-            async login(){if(!this.loginInput||!this.password)return alert('请填写');let e=this.loginInput;if(!e.includes('@')){const{data}=await window.supabase.from('profiles').select('email').eq('username',e).single();if(data)e=data.email;else return alert('无此人')}const{data,error}=await window.supabase.auth.signInWithPassword({email:e,password:this.password});if(error)alert(error.message);else await this.check(data.user.id)},
-            async check(uid){const{data}=await window.supabase.from('profiles').select('role').eq('id',uid).single();if(data?.role==='admin'){this.isAdmin=true;this.user=uid;this.loadCats();this.loadStats();this.loadUnread();this.logLogin()}else{alert('非管理员');window.supabase.auth.signOut()}},
-            logout(){window.supabase.auth.signOut();location.reload()},
-            switchTab(t){this.tab=t;if(t==='list')this.loadResources(0);if(t==='users')this.loadUsers(0);if(t==='msg')this.loadChats();if(t==='keywords')this.loadKeywords(0);if(t==='assoc')this.loadAssoc(0);if(t==='tags')this.loadAllTags()},
-            async logLogin(){await window.supabase.from('admin_logs').insert({action:'LOGIN',ip_address:this.stats.ip,user_agent:navigator.userAgent})},
-            async loadStats(){const{count:uc}=await window.supabase.from('profiles').select('*',{count:'exact',head:true});this.stats.users=uc;const{count:pc}=await window.supabase.from('resources').select('*',{count:'exact',head:true});this.stats.posts=pc;const{data}=await window.supabase.from('admin_logs').select('*').order('created_at',{ascending:false}).limit(5);this.stats.logs=data||[]},
-            async loadUnread(){const{count}=await window.supabase.from('messages').select('*',{count:'exact',head:true}).eq('is_read',false).neq('sender','admin');this.unreadCount=count||0},
-            async loadCats(){const{data}=await window.supabase.from('categories').select('*').order('id');this.categories=data||[];if(data){const z=data.find(c=>c.name.includes('综艺'));this.post.category_id=z?z.id:data[0].id}},
-            getCatName(id){return this.categories.find(c=>c.id===id)?.name||'未分类'},
+                async init() { 
+                    if(this.token) { 
+                        try {
+                            // 默认改为 dash
+                            await this.loadDashboard(); 
+                            await this.loadCats(); 
+                        } catch(e){} 
+                    } 
+                },
+                async login() { const res = await fetch('/api/auth/login', {method:'POST', body:JSON.stringify({...this.loginForm, isAdmin:true})}); const data = await res.json(); if(res.ok) { this.token = data.token; localStorage.setItem('adm_token', data.token); location.reload(); } else alert(data.error); },
+                logout() { this.token=''; localStorage.removeItem('adm_token'); location.reload(); },
+                auth() { return {'Authorization': `Bearer ${this.token}`}; },
+                
+                switchTab(t) { 
+                    this.tab = t; 
+                    if(t==='dash') this.loadDashboard();
+                    if(t==='post') this.resetPost(); 
+                    if(t==='list') { this.page=1; this.loadResources(); }
+                    if(t==='tags') this.loadAllTags();
+                    if(t==='keywords') this.loadKeywords();
+                    if(t==='users') this.loadUsers();
+                    if(t==='msgs') this.loadInbox();
+                    if(t==='cats') this.loadCats();
+                },
 
-            addBlock(){this.post.blocks.push({type:'text',value:'',locked:true})},
-            addPostTag(ctx){const target=ctx==='post'?this.post:this.editPostData;if(this.newTag&&!target.tags.some(t=>t.name===this.newTag&&t.type===this.newTagType))target.tags.push({name:this.newTag,type:this.newTagType});this.newTag=''},
-            
-            // 终极日期正则 (含复杂格式)
-            autoParseDate(ctx){
-                const target=ctx==='post'?this.post:this.editPostData; if(target.custom_date)return;
-                const t=target.title; let d='';
-                // 1. 年份范围: 2002-2003, 02-03, 2002年-2003年 -> 取起始年 2002-01-01
-                // 必须在2之前，防止 2002-03 (3月) 被误判，或者 02-03 被误判
-                // 规则：中间是 - 或 至，两边是年份(2或4位)
-                let mRange = t.match(/(?:^|[^0-9])(\d{2,4})\s*(?:年)?\s*[-至]\s*(\d{2,4})(?:年)?(?:\D|$)/);
-                // 区分 "2002-03"(3月) 和 "02-03"(02年到03年)
-                // 如果是 4位-2位，通常是年月。如果是 2位-2位，通常是年范围。
-                // 用户说 "02-03" 是范围。 "2002-03" 是年月。
-                if(mRange) {
-                    let p1=mRange[1], p2=mRange[2];
-                    if(p1.length===4 && p2.length<=2) { /* 可能是年月,跳过交给下面 */ }
-                    else {
-                        let y=parseInt(p1); if(y<100) y+=(y<50?2000:1900);
-                        d=`${y}-01-01`; target.custom_date=d; return;
-                    }
-                }
+                // 概览 (精简)
+                async loadDashboard() { const res = await fetch('/api/admin/dashboard', { headers:this.auth() }); if(res.ok) { const data = await res.json(); this.adminLogs = data.logs; } },
+                parseUA(ua) { if(!ua) return '-'; if(ua.includes('iPhone')) return 'iPhone'; if(ua.includes('Android')) return 'Android'; if(ua.includes('Mac')) return 'Mac'; if(ua.includes('Windows')) return 'Windows'; return 'Other'; },
 
-                // 2. 完整日期/年月: 2018.01.7, 17/3/12, 2018年2月3日, 2002-03
-                let mSep = t.match(/(?:^|[^0-9])(\d{2,4})[./\-年](\d{1,2})(?:[./\-月](\d{1,2}))?/);
-                if(mSep) {
-                    let y=parseInt(mSep[1]), m=parseInt(mSep[2]), day=mSep[3]?parseInt(mSep[3]):1;
-                    if(y<100) y+=(y<50?2000:1900);
-                    d=`${y}-${m.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}`;
-                } else {
-                    // 3. 纯数字: 19990112 (8位), 050312 (6位)
-                    let mPure = t.match(/(?:^|[^0-9])(\d{6,8})(?:\D|$)/);
-                    if(mPure) {
-                        let s=mPure[1];
-                        if(s.length===8) d=`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
-                        else if(s.length===6) { let y=parseInt(s.slice(0,2)); d=`${y<50?2000+y:1900+y}-${s.slice(2,4)}-${s.slice(4,6)}`; }
-                    } else {
-                        // 4. 单独年份: 1999, 2005年
-                        let mYear = t.match(/(?:^|[^0-9])(\d{4})(?:年|\s|$)/);
-                        if(mYear) d=`${mYear[1]}-01-01`;
-                    }
-                }
-                if(d) target.custom_date=d;
-            },
+                // 资源
+                async loadCats() { this.categories = (await (await fetch('/api/public/home')).json()).categories; },
+                async loadResources() { 
+                    let url = `/api/admin/resources?page=${this.page}&q=${this.searchQ}`; 
+                    if(this.filterCatId) url+=`&catId=${this.filterCatId}`;
+                    const res = await fetch(url, {headers:this.auth()}); 
+                    this.resourceList = await res.json(); 
+                },
+                prevPage() { if(this.page>1){ this.page--; this.loadResources(); } },
+                nextPage() { this.page++; this.loadResources(); },
+                getCatName(id) { const c = this.categories.find(cat => cat.id == id); return c ? c.name : '未分类'; },
+                async editResource(id) { const res = await fetch(`/api/admin/resource/${id}`, {headers:this.auth()}); const data = await res.json(); this.post={id:data.id, title:data.title, category_id:data.category_id, blocks:JSON.parse(data.content_json||'[]'), manualDate:data.custom_date, tags:data.tags||[]}; if(this.post.tags.length===0) this.post.tags.push({type:'番组',name:'',image_url:''}); this.isEdit=true; this.tab='post'; },
+                async publish() { 
+                    const hasLink = this.post.blocks.some(b => b.type === 'link' && b.value && b.value.trim() !== ''); if (!hasLink) return alert('至少填写一条有效链接！');
+                    this.post.blocks.forEach(b => { if(b.type==='link' && b.linkType==='其他') b.linkType = b.customLinkType; });
+                    const res = await fetch('/api/admin/resource', {method:'POST', headers:this.auth(), body:JSON.stringify(this.post)}); if(res.ok) { alert('成功'); this.tab='list'; this.loadResources(); this.resetPost(); } else alert((await res.json()).error); 
+                },
+                async autoFillTagImg(idx) { const t=this.post.tags[idx]; if(!t.name) return; const res=await fetch(`/api/public/tag-image?name=${t.name}&type=${t.type}`); const d=await res.json(); if(d.imageUrl && !t.image_url) t.image_url=d.imageUrl; },
+                addBlock(type) { this.post.blocks.push({ type, value: '', locked: type === 'link', linkType: '夸克' }); },
+                resetPost() { this.post = { id: null, title: '', category_id: 3, blocks: [{type:'link', value:'', locked:true, linkType:'夸克'}], manualDate: '', tags: [{type:'番组', name:'', image_url:''}] }; this.isEdit = false; },
+                async uploadImg(e, idx) { const f = e.target.files[0]; if(!f) return; const fd = new FormData(); fd.append('file', f); try { const res = await fetch('/api/admin/upload', {method:'POST', headers:this.auth(), body:fd}); const d = await res.json(); if(d.url) this.post.blocks[idx].value = d.url; } catch(e){} },
+                
+                async loadAllTags() { const res = await fetch('/api/admin/tags/all', {headers:this.auth()}); this.allTags = await res.json(); this.tagPosts = []; this.editingTag = null; },
+                async loadTagPosts(t) { this.editingTag = JSON.parse(JSON.stringify(t)); const res = await fetch(`/api/admin/resources?tagId=${t.id}`, {headers:this.auth()}); this.tagPosts = await res.json(); },
+                async updateTag() { if(!this.editingTag) return; if(!this.editingTag.name) return alert('必填'); const res = await fetch('/api/admin/tag/update', {method:'POST', headers:this.auth(), body:JSON.stringify(this.editingTag)}); const data = await res.json(); if(res.ok) { alert(data.message || '成功'); this.loadAllTags(); } else alert(data.error); },
+                async uploadTagImg(e) { const f = e.target.files[0]; if(!f) return; const fd = new FormData(); fd.append('file', f); try { const res = await fetch('/api/admin/upload', {method:'POST', headers:this.auth(), body:fd}); const d = await res.json(); if(d.url) this.editingTag.image_url = d.url; } catch(e){ alert('失败'); } },
 
-            async uploadImg(e,i,ctx){const f=e.target.files[0];if(!f)return;const p=`${Date.now()}_${Math.random().toString(36).slice(2)}.${f.name.split('.').pop()}`;const{data,error}=await window.supabase.storage.from('images').upload(p,f);if(error)return alert('失败');const{data:{publicUrl}}=window.supabase.storage.from('images').getPublicUrl(p);if(ctx==='post')this.post.blocks[i].value=publicUrl;else this.editPostData.blocks[i].value=publicUrl},
-            async publish(){
-                if(!this.post.title)return alert('标题必填');
-                const links=this.post.blocks.filter(b=>b.type==='link'&&b.value.trim()!=='');
-                if(links.length===0)return alert('必须包含至少一个链接');
-                const d=this.post.custom_date||new Date().toISOString().split('T')[0];
-                const{data:res,error}=await window.supabase.from('resources').insert({title:this.post.title,content_json:this.post.blocks,category_id:this.post.category_id,custom_date:d}).select().single();
-                if(error)return alert('失败:'+error.message);
-                for(const t of this.post.tags){let{data:tag}=await window.supabase.from('tags').select('id').eq('name',t.name).eq('type',t.type).single();if(!tag){const{data:nT}=await window.supabase.from('tags').insert(t).select().single();tag=nT}await window.supabase.from('resource_tags').insert({resource_id:res.id,tag_id:tag.id})}
-                alert('发布成功');this.post.title='';this.post.custom_date='';this.post.blocks=[{type:'link',value:'',locked:true}];this.post.tags=[];
-            },
-            async loadResources(p){this.isLoading=true;this.resPage=p;let q=window.supabase.from('resources').select('*',{count:'exact'});if(this.resSearchQ)q=q.ilike('title',`%${this.resSearchQ}%`);const{data,count}=await q.order('created_at',{ascending:false}).range(p*50,(p+1)*50-1);this.resources=data||[];this.resTotal=count;this.resTotalPages=Math.ceil(count/50);this.resources.forEach(r=>r.selected=false);this.isLoading=false},
-            goToResPage(){if(this.jumpPage>0&&this.jumpPage<=this.resTotalPages)this.loadResources(this.jumpPage-1)},
-            toggleAllRes(){const all=this.resources.every(r=>r.selected);this.resources.forEach(r=>r.selected=!all)},
-            async delRes(id){if(confirm('删?')){await window.supabase.from('resources').delete().eq('id',id);this.loadResources(this.resPage)}},
-            async batchDelete(){const ids=this.resources.filter(r=>r.selected).map(r=>r.id);if(ids.length&&confirm(`删 ${ids.length} 个?`)){await window.supabase.from('resources').delete().in('id',ids);this.loadResources(this.resPage)}},
-            async openEditModal(r){const{data:assoc}=await window.supabase.from('view_resource_tags').select('tag_name,tag_type').eq('resource_id',r.id);this.editPostData={...r,blocks:r.content_json||[],tags:assoc?assoc.map(a=>({name:a.tag_name,type:a.tag_type})):[]};this.editModal=true},
-            async saveEditPost(){const{error}=await window.supabase.from('resources').update({title:this.editPostData.title,category_id:this.editPostData.category_id,custom_date:this.editPostData.custom_date,content_json:this.editPostData.blocks}).eq('id',this.editPostData.id);await window.supabase.from('resource_tags').delete().eq('resource_id',this.editPostData.id);for(const t of this.editPostData.tags){let{data:tag}=await window.supabase.from('tags').select('id').eq('name',t.name).eq('type',t.type).single();if(!tag){const{data:nT}=await window.supabase.from('tags').insert(t).select().single();tag=nT}await window.supabase.from('resource_tags').insert({resource_id:this.editPostData.id,tag_id:tag.id})}if(error)alert('失败');else{alert('成功');this.editModal=false;this.loadResources(this.resPage)}},
-            
-            async loadKeywords(p){this.kwPage=p;let q=window.supabase.from('tag_keywords').select('*,keyword_tag_definitions(tag_name,tag_type)',{count:'exact'});if(this.kwSearchQ)q=q.ilike('keyword',`%${this.kwSearchQ}%`);const{data,count}=await q.range(p*50,(p+1)*50-1).order('created_at',{ascending:false});this.keywords=(data||[]).map(k=>({...k,tags:k.keyword_tag_definitions.map(d=>({name:d.tag_name,type:d.tag_type})),selected:false}));this.kwTotal=count;this.kwTotalPages=Math.ceil(count/50)},
-            goToKwPage(){if(this.jumpKwPage>0&&this.jumpKwPage<=this.kwTotalPages)this.loadKeywords(this.jumpKwPage-1)},
-            toggleAllKw(){const all=this.keywords.every(k=>k.selected);this.keywords.forEach(k=>k.selected=!all)},
-            openAddKeyword(){this.editKwData={id:null,keyword:'',tags:[]};this.kwModal=true},
-            editKeyword(k){this.editKwData={id:k.id,keyword:k.keyword,tags:[...k.tags]};this.kwModal=true},
-            addRuleToKw(){if(this.kwNewTagName){this.editKwData.tags.push({name:this.kwNewTagName,type:this.kwNewTagType});this.kwNewTagName=''}},
-            async saveKeyword(){if(!this.editKwData.keyword)return alert('必填');let kId=this.editKwData.id;if(!kId){const{data,error}=await window.supabase.from('tag_keywords').insert({keyword:this.editKwData.keyword}).select().single();if(error)return alert('失败');kId=data.id}else{await window.supabase.from('tag_keywords').update({keyword:this.editKwData.keyword}).eq('id',kId)}await window.supabase.from('keyword_tag_definitions').delete().eq('keyword_id',kId);for(const t of this.editKwData.tags){await window.supabase.from('keyword_tag_definitions').insert({keyword_id:kId,tag_name:t.name,tag_type:t.type})}alert('成功');this.kwModal=false;this.loadKeywords(this.kwPage)},
-            async batchDelKw(){const ids=this.keywords.filter(k=>k.selected).map(k=>k.id);if(ids.length&&confirm('删?')){await window.supabase.from('tag_keywords').delete().in('id',ids);this.loadKeywords(this.kwPage)}},
+                async loadKeywords() { const res = await fetch('/api/admin/tag-keywords', {headers:this.auth()}); this.keywords = await res.json(); },
+                async addKeyword() { if(!this.newKw.keyword || !this.newKw.tagName) return; await fetch('/api/admin/tag-keywords', {method:'POST', headers:this.auth(), body:JSON.stringify({...this.newKw, action:'add'})}); this.newKw.keyword=''; this.loadKeywords(); },
+                async delKeyword(id) { if(!confirm('删?')) return; await fetch('/api/admin/tag-keywords', {method:'POST', headers:this.auth(), body:JSON.stringify({id, action:'del'})}); this.loadKeywords(); },
+                
+                async loadUsers() { const res = await fetch('/api/admin/users', { headers:this.auth() }); if(res.ok) this.users = await res.json(); },
+                toggleAll(e) { this.selectedUsers = e.target.checked ? this.users.map(u => u.id) : []; },
+                async batchAction(action) { if(!confirm(`确认 ${action}?`)) return; await fetch('/api/admin/users/batch', { method:'POST', headers:this.auth(), body:JSON.stringify({ userIds: this.selectedUsers, action }) }); this.loadUsers(); },
+                async editQuota(u) { const l = prompt('钥匙数:', u.daily_limit||1); if(l) await fetch('/api/admin/user/quota', { method:'POST', headers:this.auth(), body:JSON.stringify({ userId:u.id, config:{limit:parseInt(l)} }) }); this.loadUsers(); },
+                async loadBlacklist() { const res = await fetch('/api/admin/blacklist', { headers:this.auth() }); if(res.ok) this.blacklist = await res.json(); },
+                async unban(email) { if(!confirm('解封?')) return; await fetch('/api/admin/blacklist/delete', { method:'POST', headers:this.auth(), body:JSON.stringify({email}) }); this.loadBlacklist(); },
+                // 跳转私信
+                async jumpToChat(user) {
+                    this.tab = 'msgs';
+                    await this.loadInbox();
+                    let target = this.inboxList.find(u => u.id === user.id);
+                    if (!target) { target = { id: user.id, username: user.username, email: user.email, last_msg: '无记录', last_time: new Date() }; this.inboxList.unshift(target); }
+                    this.selectChat(target);
+                },
 
-            async loadAssoc(p){this.assocPage=p;let q=window.supabase.from('view_resource_tags').select('*',{count:'exact'});if(this.assocSearch)q=q.or(`resource_title.ilike.%${this.assocSearch}%,tag_name.ilike.%${this.assocSearch}%`);const{data,count}=await q.range(p*50,(p+1)*50-1);this.assocs=data||[];this.assocTotal=count;this.assocTotalPages=Math.ceil(count/50);this.assocs.forEach(a=>a.selected=false)},
-            goToAssocPage(){if(this.jumpAssocPage>0&&this.jumpAssocPage<=this.assocTotalPages)this.loadAssoc(this.jumpAssocPage-1)},
-            toggleAllAssoc(){const all=this.assocs.every(a=>a.selected);this.assocs.forEach(a=>a.selected=!all)},
-            async delAssoc(a){if(confirm('解?')){await window.supabase.from('resource_tags').delete().eq('resource_id',a.resource_id).eq('tag_id',a.tag_id);this.loadAssoc(this.assocPage)}},
-            async batchDelAssoc(){const sel=this.assocs.filter(a=>a.selected);if(sel.length&&confirm('解?')){for(const a of sel)await window.supabase.from('resource_tags').delete().eq('resource_id',a.resource_id).eq('tag_id',a.tag_id);this.loadAssoc(this.assocPage)}},
-            openAddAssoc(){this.newAssocData={resource_id:'',tag_name:'',tag_type:'番组'};this.assocModal=true},
-            async saveAssoc(){if(!this.newAssocData.resource_id||!this.newAssocData.tag_name)return alert('必填');const{data:res}=await window.supabase.from('resources').select('id').eq('id',this.newAssocData.resource_id).single();if(!res)return alert('帖子ID不存在');let tId;const{data:tag}=await window.supabase.from('tags').select('id').eq('name',this.newAssocData.tag_name).eq('type',this.newAssocData.tag_type).single();if(tag)tId=tag.id;else{const{data:nT}=await window.supabase.from('tags').insert({name:this.newAssocData.tag_name,type:this.newAssocData.tag_type}).select().single();tId=nT.id}const{error}=await window.supabase.from('resource_tags').insert({resource_id:res.id,tag_id:tId});if(error)alert('失败');else{alert('成功');this.assocModal=false;this.loadAssoc(this.assocPage)}},
+                async loadInbox() { const res = await fetch('/api/admin/inbox', { headers:this.auth() }); if(res.ok) { this.inboxList = await res.json(); this.totalUnread = this.inboxList.reduce((sum,u)=>sum+(u.unread||0),0); } },
+                async selectChat(u) { this.activeChatUser = u; const res = await fetch(`/api/admin/messages/${u.id}`, { headers:this.auth() }); if(res.ok) { this.currentChatMsgs = await res.json(); this.$nextTick(() => { const c = document.getElementById('adminChatContainer'); if(c) c.scrollTop = c.scrollHeight; }); } },
+                async sendReply() { if(!this.replyContent) return; const res = await fetch('/api/admin/message/reply', { method: 'POST', headers: this.auth(), body: JSON.stringify({ userId: this.activeChatUser.id, content: this.replyContent }) }); if(res.ok) { this.replyContent = ''; this.selectChat(this.activeChatUser); } },
+                
+                async backupData() { if(!confirm('下载备份?')) return; const res = await fetch('/api/admin/backup', { headers:this.auth() }); if(res.ok) { const blob = await res.blob(); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `backup_${new Date().toISOString().split('T')[0]}.json`; a.click(); } },
+                async fixDates() { if(!confirm('修复日期?')) return; const res = await fetch('/api/admin/fix-dates', { method: 'POST', headers: this.auth() }); if(res.ok) { const data = await res.json(); alert(`修复 ${data.fixed} 条`); } else alert('失败'); },
+                triggerRestore() { document.getElementById('restoreInput').click(); },
+                async handleRestore(e) {
+                    const file = e.target.files[0]; if(!file) return;
+                    if(!confirm('⚠️ 警告：覆盖所有数据！')) return;
+                    const reader = new FileReader();
+                    reader.onload = async (evt) => {
+                        try {
+                            const json = JSON.parse(evt.target.result);
+                            const res = await fetch('/api/admin/restore', {method:'POST', headers:this.auth(), body:JSON.stringify(json)});
+                            if(res.ok) { alert('恢复成功，刷新页面'); location.reload(); } else alert('失败: '+(await res.json()).error);
+                        } catch(err) { alert('文件错误'); }
+                    };
+                    reader.readAsText(file); e.target.value = '';
+                },
 
-            async loadUsers(p){this.userPage=p;let q=window.supabase.from('profiles').select('*').order('created_at',{ascending:false});if(this.userSearchQ)q=q.or(`email.ilike.%${this.userSearchQ}%,username.ilike.%${this.userSearchQ}%`);const{data}=await q.range(p*30,(p+1)*30-1);this.users=data||[];},
-            async saveUser(u){const{data,error}=await window.supabase.rpc('admin_update_keys',{target_user_id:u.id,new_keys:parseInt(u.edit_keys)});if(error||!data.success)alert('失败');else{alert('成功');u.keys_count=u.edit_keys}},
-            openPrivilegeModal(u){this.privData={id:u.id,count:u.override_key_count||u.keys_count,start:u.override_start_date||'',end:u.override_end_date||''};this.privModal=true},
-            async savePrivilege(){const{data,error}=await window.supabase.rpc('admin_update_override',{target_user_id:this.privData.id,start_date:this.privData.start||null,end_date:this.privData.end||null,lock_keys:parseInt(this.privData.count)});if(error||!data.success)alert('失败');else{alert('设置成功');this.privModal=false;this.loadUsers(this.userPage)}},
-            openDM(u){this.tab='msg';this.activeChat={user_id:u.id,username:u.username||'用户'+u.id.slice(0,4)};this.loadChatMsgs()},
-            async loadChats(){const{data}=await window.supabase.from('messages').select('*,profiles(username)').neq('sender','admin').order('created_at',{ascending:false});const m=new Map();(data||[]).forEach(x=>{if(!m.has(x.user_id))m.set(x.user_id,{user_id:x.user_id,username:(x.profiles&&x.profiles.username)?x.profiles.username:'未知用户',last_msg:x.content,read:x.is_read})});this.conversations=Array.from(m.values())},
-            async loadChatMsgs(){if(!this.activeChat)return;const{data}=await window.supabase.from('messages').select('*').eq('user_id',this.activeChat.user_id).order('created_at',{ascending:true});this.chatMsgs=data||[];setTimeout(()=>document.getElementById('admChatBox').scrollTop=9999,100);await window.supabase.from('messages').update({is_read:true}).eq('user_id',this.activeChat.user_id).eq('sender','user');const c=this.conversations.find(x=>x.user_id===this.activeChat.user_id);if(c&&!c.read){c.read=true;this.unreadCount=Math.max(0,this.unreadCount-1)}},
-            async sendAdmMsg(){if(!this.chatInput)return;await window.supabase.from('messages').insert({user_id:this.activeChat.user_id,sender:'admin',content:this.chatInput});this.chatInput='';this.loadChatMsgs()},
-            async loadAllTags(){const{data}=await window.supabase.from('tags').select('*').eq('type',this.tagType);this.allTags=data||[]},
-            async delTag(id){if(confirm('删?'))await window.supabase.from('tags').delete().eq('id',id);this.loadAllTags()},
-            openEditTag(t){this.editTagData={...t};this.tagModal=true;this.loadTagPosts(t.id)}, 
-            async loadTagPosts(tid){this.tagPosts=[];const{data}=await window.supabase.from('view_resource_tags').select('resource_title, resource_date').eq('tag_id',tid).limit(20);if(data)this.tagPosts=data.map(x=>({title:x.resource_title,custom_date:x.resource_date}))},
-            async saveEditTag(){const{error}=await window.supabase.from('tags').update({name:this.editTagData.name,type:this.editTagData.type,image_url:this.editTagData.image_url}).eq('id',this.editTagData.id);if(error)alert('失败');else{this.tagModal=false;this.loadAllTags()}},
-            async addCat(){if(this.newCatName)await window.supabase.from('categories').insert({name:this.newCatName});this.loadCats()},
-            async delCat(id){if(confirm('删?'))await window.supabase.from('categories').delete().eq('id',id);this.loadCats()},
-            async backupData(){const t=['resources','users','tags','resource_tags','categories','profiles','messages','tag_keywords','keyword_tag_definitions'];const b={};for(const x of t){const{data}=await window.supabase.from(x==='users'?'profiles':x).select('*');b[x]=data}const u=URL.createObjectURL(new Blob([JSON.stringify(b)],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download=`backup_${new Date().toISOString().slice(0,10)}.json`;a.click()},
-            async restoreData(){const f=document.getElementById('restoreFile').files[0];if(!f)return;const r=new FileReader();r.onload=async(e)=>{const d=JSON.parse(e.target.result);if(confirm('恢复?')){if(d.categories)await window.supabase.from('categories').upsert(d.categories);if(d.tags)await window.supabase.from('tags').upsert(d.tags);if(d.resources)await window.supabase.from('resources').upsert(d.resources);if(d.resource_tags)await window.supabase.from('resource_tags').upsert(d.resource_tags);alert('完成')}};r.readAsText(f)}
-        }}
+                async delResource(id) { if(confirm('删?')) { await fetch('/api/admin/resource/delete', {method:'POST', headers:this.auth(), body:JSON.stringify({id})}); this.loadResources(); } },
+                async deduplicate() { if(!confirm('删除重复旧帖?')) return; const res = await fetch('/api/admin/resource/deduplicate', { method: 'POST', headers: this.auth() }); const data = await res.json(); if(res.ok) { alert(`已删除 ${data.deleted} 篇`); this.loadResources(); } else alert('失败'); },
+                toggleAllPosts(e) { this.selectedPosts = e.target.checked ? this.resourceList.map(r => r.id) : []; },
+                async batchDeletePosts() { if(this.selectedPosts.length===0)return; if(!confirm(`删除 ${this.selectedPosts.length} 篇?`)) return; const res = await fetch('/api/admin/resource/delete/batch', { method: 'POST', headers: this.auth(), body: JSON.stringify({ ids: this.selectedPosts }) }); if(res.ok) { alert('成功'); this.selectedPosts = []; this.loadResources(); } else alert('失败'); },
+                async manageCat(a, id) { if(a==='add'&&!this.newCat) return; await fetch('/api/admin/category', {method:'POST', headers:this.auth(), body:JSON.stringify({action:a, name:this.newCat, id})}); this.newCat=''; this.loadCats(); }
+            }
+        }
     </script>
 </body>
 </html>
